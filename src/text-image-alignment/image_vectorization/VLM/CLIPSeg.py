@@ -22,12 +22,19 @@ class CLIPSeg:
             A list of text can be provised
             @param: image_path: absolute path to image
             @param: text: list of str
+
+            return: text, BoundingBox, image with segmented object, image with bounding box around the object
         '''
         SEGMENTATION_THRESHOLD = 0.2 ### threshold for segmentation
         SEGMENT_COLORMAP = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]  # Colors for different objects
-        largest_segmented_area = 0
-        self.detected_object_name = ''
+        _largest_segmented_area = 0
         best_box = None
+
+        #### return values:
+        self.detected_object_name = ''
+        bounding_box = []
+        segmented_image = None
+        image_with_bounding_boxed = None
 
         texts = [texts]
 
@@ -73,15 +80,17 @@ class CLIPSeg:
                     x, y, w, h = cv2.boundingRect(contour)
                     area = cv2.contourArea(contour)
 
-                    if area > largest_segmented_area:
-                        largest_segmented_area = area
+                    if area > _largest_segmented_area:
+                        _largest_segmented_area = area
                         best_box = (x, y, w, h)
 
                 if best_box is not None:
                     x, y, w, h = best_box
+                    bounding_box = [x, y, w, h]
                     self.bounding_boxed_image = cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     self.bounding_boxed_image = cv2.putText(image_cv, f"'{self.detected_object_name}' probability: {object_score:.2f}", (x - 20, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                
+                    image_with_bounding_boxed = self.bounding_boxed_image
+
                 mask_colored = np.zeros_like(image_cv)
                 mask_colored[:, :, 0] = mask_resized * (SEGMENT_COLORMAP[i][0] / 255)
                 mask_colored[:, :, 1] = mask_resized * (SEGMENT_COLORMAP[i][1] / 255)
@@ -90,8 +99,11 @@ class CLIPSeg:
                 # Blend mask with image
                 self.segmented_overlay = cv2.addWeighted(self.segmented_overlay, 0.7, mask_colored, 0.3, 0)
                 self.segmented_overlay = cv2.putText(self.segmented_overlay, f"'{self.detected_object_name}' probability: {object_score:.2f}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                segmented_image = self.segmented_overlay
             else:
                 print(f"Object '{text}' not detected")
+
+        return self.detected_object_name, bounding_box, segmented_image, image_with_bounding_boxed
 
     def show_segmented_image(self, segmentations=True, bounding_boxes=True):
         if self.detected_object_name != '':
@@ -107,9 +119,12 @@ class CLIPSeg:
             cv2.waitKey(0)
             cv2.destroyAllWindows()
 
-    def save_image(self, segmented_image=True, bounding_boxed_image=True):
-        current_dir = os.path.dirname(__file__)
-        images_dir = current_dir + '/images/CLIPSeg/'
+    def save_image(self, segmented_image=True, bounding_boxed_image=True, save_path=''):
+        if save_path != '':
+            images_dir = save_path
+        else:
+            current_dir = os.path.dirname(__file__)
+            images_dir = current_dir + '/images/CLIPSeg/'
 
         
         if self.detected_object_name != '':
@@ -135,9 +150,13 @@ if __name__ == "__main__":
     image_path = pic_dir + '_image1.jpg'
 
     texts = "the blue cube"
-    clipseg.segment_object(image_path, texts)
-    clipseg.show_segmented_image(segmentations=True, bounding_boxes=True)
-    clipseg.save_image(segmented_image=True, bounding_boxed_image=True)
+    object_name, bounding_box, segmented_image, boundingBoxed_image = clipseg.segment_object(image_path, texts)
+    print(object_name, bounding_box)
+    cv2.imshow("segmented_image", segmented_image)
+    cv2.imshow("bounding_boxed_image", boundingBoxed_image)
+    cv2.waitKey(0)
+    # clipseg.show_segmented_image(segmentations=True, bounding_boxes=True)
+    # clipseg.save_image(segmented_image=True, bounding_boxed_image=True)
 
 
 
