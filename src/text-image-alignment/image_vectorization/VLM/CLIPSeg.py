@@ -23,7 +23,7 @@ class CLIPSeg:
             @param: image_path: absolute path to image
             @param: text: list of str
 
-            return: text, BoundingBox, image with segmented object, image with bounding box around the object
+            return: detected_object_name, BoundingBox, image with segmented object, image with bounding box around the object
         '''
         SEGMENTATION_THRESHOLD = 0.2 ### threshold for segmentation
         SEGMENT_COLORMAP = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]  # Colors for different objects
