@@ -23,16 +23,19 @@ class CLIPSeg:
             @param: image_path: absolute path to image
             @param: text: list of str
 
-            return: detected_object_name, BoundingBox, image with segmented object, image with bounding box around the object
+            return: object_features, image with segmented object, image with bounding box around the object
+            object_features is a dict : {'name' : str, 'probability' : float, 'bounding_box' : list}
         '''
         SEGMENTATION_THRESHOLD = 0.2 ### threshold for segmentation
         SEGMENT_COLORMAP = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]  # Colors for different objects
         _largest_segmented_area = 0
+        object_score = 0
         best_box = None
 
         #### return values:
-        self.detected_object_name = ''
-        bounding_box = []
+        object_features = {'name' : "",
+                           'probability' : 0,
+                           'bounding_box' : []}
         segmented_image = None
         image_with_bounding_boxed = None
 
@@ -54,11 +57,11 @@ class CLIPSeg:
         ####  FINDING OBJECT IN IMAGE BASED ON TEXT - CLIPSeg  ####
         ###########################################################
 
-        inputs = self.processor(text=texts, images=[image] * len(texts), padding=True, return_tensors="pt")
-        outputs = self.model(**inputs)
-        logits = outputs.logits  # Shape: (num_texts, H, W)
+        _inputs = self.processor(text=texts, images=[image] * len(texts), padding=True, return_tensors="pt")
+        _outputs = self.model(**_inputs)
+        _logits = _outputs.logits  # Shape: (num_texts, H, W)
 
-        probs = torch.sigmoid(logits).detach().numpy()  # Convert logits to probabilities
+        probs = torch.sigmoid(_logits).detach().numpy()  # Convert logits to probabilities
 
         for i, text in enumerate(texts):
             object_score = probs[i].max()
@@ -70,6 +73,9 @@ class CLIPSeg:
             #### the object is detected in the image
             if object_score >= SEGMENTATION_THRESHOLD:
                 self.detected_object_name = text
+                object_features['name'] = self.detected_object_name
+                object_features['probability'] = object_score
+
                 print(f"Object '{self.detected_object_name}' detected with max probability {object_score:.2f}")
                 
                 ### find contours of the segmented object
@@ -86,7 +92,8 @@ class CLIPSeg:
 
                 if best_box is not None:
                     x, y, w, h = best_box
-                    bounding_box = [x, y, w, h]
+                    object_features['bounding_box'] = [x, y, w, h]
+
                     self.bounding_boxed_image = cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     self.bounding_boxed_image = cv2.putText(image_cv, f"'{self.detected_object_name}' probability: {object_score:.2f}", (x - 20, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
                     image_with_bounding_boxed = self.bounding_boxed_image
@@ -103,7 +110,7 @@ class CLIPSeg:
             else:
                 print(f"Object '{text}' not detected")
 
-        return self.detected_object_name, bounding_box, segmented_image, image_with_bounding_boxed
+        return object_features, segmented_image, image_with_bounding_boxed
 
     def show_segmented_image(self, segmentations=True, bounding_boxes=True):
         if self.detected_object_name != '':
@@ -149,9 +156,9 @@ if __name__ == "__main__":
     pic_dir = src_dir + '/simulation/images/'
     image_path = pic_dir + '_image1.jpg'
 
-    texts = "the blue cube"
-    object_name, bounding_box, segmented_image, boundingBoxed_image = clipseg.segment_object(image_path, texts)
-    print(object_name, bounding_box)
+    texts = "the blue box"
+    object_features, segmented_image, boundingBoxed_image = clipseg.segment_object(image_path, texts)
+    print(object_features)
     cv2.imshow("segmented_image", segmented_image)
     cv2.imshow("bounding_boxed_image", boundingBoxed_image)
     cv2.waitKey(0)
