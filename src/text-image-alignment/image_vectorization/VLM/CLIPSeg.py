@@ -25,17 +25,19 @@ class CLIPSeg:
 
             return: object_features, image with segmented object, image with bounding box around the object
             object_features is a dict : {'name' : str, 'probability' : float, 'bounding_box' : list}
+            bounding_box is a list : [x, y, w, h]
         '''
-        SEGMENTATION_THRESHOLD = 0.2 ### threshold for segmentation
+        SEGMENTATION_THRESHOLD = 0.05 ### threshold for segmentation
         SEGMENT_COLORMAP = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]  # Colors for different objects
         _largest_segmented_area = 0
         object_score = 0
         best_box = None
+        self.detected_object_name = ''
 
         #### return values:
         object_features = {'name' : "",
                            'probability' : 0,
-                           'bounding_box' : []}
+                           'bounding_box' : []} ## x, y, w, h
         segmented_image = None
         image_with_bounding_boxed = None
 
@@ -59,9 +61,11 @@ class CLIPSeg:
 
         _inputs = self.processor(text=texts, images=[image] * len(texts), padding=True, return_tensors="pt")
         _outputs = self.model(**_inputs)
+        
         _logits = _outputs.logits  # Shape: (num_texts, H, W)
 
         probs = torch.sigmoid(_logits).detach().numpy()  # Convert logits to probabilities
+        print(len(probs))
 
         for i, text in enumerate(texts):
             object_score = probs[i].max()
@@ -74,7 +78,9 @@ class CLIPSeg:
             if object_score >= SEGMENTATION_THRESHOLD:
                 self.detected_object_name = text
                 object_features['name'] = self.detected_object_name
-                object_features['probability'] = object_score
+                object_features['probability'] = float(object_score)
+
+                self.detected_object_name = self.detected_object_name + f'_T_{SEGMENTATION_THRESHOLD}'
 
                 print(f"Object '{self.detected_object_name}' detected with max probability {object_score:.2f}")
                 
@@ -96,7 +102,6 @@ class CLIPSeg:
 
                     self.bounding_boxed_image = cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     self.bounding_boxed_image = cv2.putText(image_cv, f"'{self.detected_object_name}' probability: {object_score:.2f}", (x - 20, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-                    image_with_bounding_boxed = self.bounding_boxed_image
 
                 mask_colored = np.zeros_like(image_cv)
                 mask_colored[:, :, 0] = mask_resized * (SEGMENT_COLORMAP[i][0] / 255)
@@ -106,10 +111,12 @@ class CLIPSeg:
                 # Blend mask with image
                 self.segmented_overlay = cv2.addWeighted(self.segmented_overlay, 0.7, mask_colored, 0.3, 0)
                 self.segmented_overlay = cv2.putText(self.segmented_overlay, f"'{self.detected_object_name}' probability: {object_score:.2f}", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-                segmented_image = self.segmented_overlay
+                
             else:
                 print(f"Object '{text}' not detected")
 
+        segmented_image = self.segmented_overlay
+        image_with_bounding_boxed = self.bounding_boxed_image
         return object_features, segmented_image, image_with_bounding_boxed
 
     def show_segmented_image(self, segmentations=True, bounding_boxes=True):
@@ -136,7 +143,7 @@ class CLIPSeg:
         
         if self.detected_object_name != '':
             self.image_save_counter += 1
-            image_name = self.detected_object_name + f'_{self.image_save_counter}_T0.2.jpg'
+            image_name = self.detected_object_name + f'_{self.image_save_counter}.jpg'
 
             if segmented_image:
                 save_path = images_dir + 'segmented_images/' + image_name
@@ -154,15 +161,16 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(__file__)
     src_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
     pic_dir = src_dir + '/simulation/images/'
-    image_path = pic_dir + '_image1.jpg'
+    image_path = pic_dir + '_image66.jpg'
+    # image_path = pic_dir + '_image_changedscene1.jpg'
 
-    texts = "the blue box"
+    texts = "yellow cube"
     object_features, segmented_image, boundingBoxed_image = clipseg.segment_object(image_path, texts)
     print(object_features)
-    cv2.imshow("segmented_image", segmented_image)
-    cv2.imshow("bounding_boxed_image", boundingBoxed_image)
-    cv2.waitKey(0)
-    # clipseg.show_segmented_image(segmentations=True, bounding_boxes=True)
+    # cv2.imshow("segmented_image", segmented_image)
+    # cv2.imshow("bounding_boxed_image", boundingBoxed_image)
+    # cv2.waitKey(0)
+    clipseg.show_segmented_image(segmentations=True, bounding_boxes=True)
     # clipseg.save_image(segmented_image=True, bounding_boxed_image=True)
 
 
