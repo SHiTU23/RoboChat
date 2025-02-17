@@ -16,7 +16,12 @@ class CLIPSeg:
 
         self.image_save_counter = 1
 
-    def segment_object(self, image_path, texts):
+
+
+
+
+
+    def segment_object(self, image_path, texts, most_probable_obj=True):
         '''
             This function segments an object in the image based on the text provided.
             A list of text can be provised
@@ -27,8 +32,9 @@ class CLIPSeg:
             object_features is a dict : {'name' : str, 'probability' : float, 'bounding_box' : list}
             bounding_box is a list : [x, y, w, h]
         '''
-        SEGMENTATION_THRESHOLD = 0.05 ### threshold for segmentation
+        SEGMENTATION_THRESHOLD = 0.2 ### threshold for segmentation
         SEGMENT_COLORMAP = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]  # Colors for different objects
+        _highest_segmentation_ratio = 0
         _largest_segmented_area = 0
         object_score = 0
         best_box = None
@@ -87,21 +93,46 @@ class CLIPSeg:
                 ### find contours of the segmented object
                 contours, _ = cv2.findContours(mask_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-                for contour in contours:
-                    # Get bounding box around the object
-                    x, y, w, h = cv2.boundingRect(contour)
-                    area = cv2.contourArea(contour)
+                ##########################
+                #### Edge Detection ######
+                ##########################
+                if most_probable_obj: 
+                    gray_image = cv2.cvtColor(image_cv, cv2.COLOR_BGR2GRAY)
+                    edges = cv2.Canny(gray_image, 100, 200)
 
-                    if area > _largest_segmented_area:
-                        _largest_segmented_area = area
-                        best_box = (x, y, w, h)
+                    # Find all object contours (potential objects in the image)
+                    obj_contours, _ = cv2.findContours(edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-                if best_box is not None:
-                    x, y, w, h = best_box
-                    object_features['bounding_box'] = [x, y, w, h]
+                    best_segmentation_ratio = 0 
 
-                    self.bounding_boxed_image = cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
-                    self.bounding_boxed_image = cv2.putText(image_cv, f"'{self.detected_object_name}' probability: {object_score:.2f}", (x - 20, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    for obj in obj_contours:
+                        x, y, w, h = cv2.boundingRect(obj) 
+                        object_area = w * h  
+                        
+                        if object_area > 0:  
+                            # Count the number of segmented pixels inside this object
+                            mask_inside_obj = mask_resized[y:y+h, x:x+w]
+                            segmented_area = np.sum(mask_inside_obj > 0)
+
+                            segmentation_ratio = segmented_area / object_area
+
+                            if segmentation_ratio > best_segmentation_ratio:  
+                                best_segmentation_ratio = segmentation_ratio
+                                best_object = (x, y, w, h)
+
+                    if best_segmentation_ratio > _highest_segmentation_ratio:
+                        _highest_segmentation_ratio = best_segmentation_ratio
+                        object_features['name'] = self.detected_object_name
+                        object_features['probability'] = float(object_score)
+                        object_features['bounding_box'] = best_object if best_object else []
+
+                        if best_object:
+                            x, y, w, h = best_object
+                            self.bounding_boxed_image = cv2.rectangle(image_cv, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                            self.bounding_boxed_image = cv2.putText(
+                                image_cv, f"'{self.detected_object_name}' ratio: {best_segmentation_ratio:.2f}, prob: {float(object_score):.2f}",
+                                (x - 20, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2
+                            )
 
                 mask_colored = np.zeros_like(image_cv)
                 mask_colored[:, :, 0] = mask_resized * (SEGMENT_COLORMAP[i][0] / 255)
@@ -161,21 +192,15 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(__file__)
     src_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
     pic_dir = src_dir + '/simulation/images/'
-    image_path = pic_dir + '_image66.jpg'
+    image_path = pic_dir + '_image1.jpg'
     # image_path = pic_dir + '_image_changedscene1.jpg'
 
-    texts = "yellow cube"
-    object_features, segmented_image, boundingBoxed_image = clipseg.segment_object(image_path, texts)
+    
+
+    texts = "green cube"
+    object_features, segmented_image, boundingBoxed_image = clipseg.segment_object(image_path, texts, most_probable_obj=True)
     print(object_features)
-    # cv2.imshow("segmented_image", segmented_image)
-    # cv2.imshow("bounding_boxed_image", boundingBoxed_image)
-    # cv2.waitKey(0)
     clipseg.show_segmented_image(segmentations=True, bounding_boxes=True)
     # clipseg.save_image(segmented_image=True, bounding_boxed_image=True)
-
-
-
-
-
 
 
