@@ -1,5 +1,20 @@
-### Use GPT-4o to split the query into actions and obejcts
+'''
+ Use GPT-4o to split the query into actions and obejcts
+ The input is a query that contains a pick and place task to be done by the robot.
+ The output is a json file with action and objects
 
+ EXAMPLE:
+    input query: pick the green cube and place it in position [10, 20].
+    response: 
+        {
+        "action": "pick and place",
+        "objects": {
+                    "pick": "the green cube",
+                    "place": "position [10, 20]"
+                    }
+        }
+'''
+#####################################
 
 import os  
 import base64
