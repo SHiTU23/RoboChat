@@ -37,7 +37,7 @@ for query in queries:
         image_path = pic_dir + image_name
 
         dino_process_time_start = time.time()
-        dino_features, dino_bb_img = grounding_dino.detect_object(image_path, query, all_objects=True)
+        dino_features, dino_bb_img = grounding_dino.detect_object(image_path, query, all_objects=False)
         dino_process_time_end = time.time()
 
         process_time.append(dino_process_time_end - dino_process_time_start)
@@ -57,7 +57,7 @@ for query in queries:
     fig.suptitle(f"query: '{query}', average process time: {average_process_time:.2f}s")
 
     plt.tight_layout()
-    plt.savefig(save_path + f'{query}.jpg')
+    plt.savefig(save_path + f'ONE_{query}.jpg')
     print("image saved")
     # plt.show()
 
