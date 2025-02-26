@@ -10,7 +10,7 @@ index_name = "rag-robotics-docs-index"
 credential = AzureKeyCredential(AZURE_SEARCH_ADMIN_KEY)
 
 # Vector Search using text-to-vector conversion of the querystring
-query = "how to pick an object?"  
+query = "do I need to attach the object when picking it?"  
 
 search_client = SearchClient(endpoint=AZURE_SEARCH_SERVICE, credential=credential, index_name=index_name)
 vector_query = VectorizableTextQuery(text=query, k_nearest_neighbors=50, fields="text_vector")
