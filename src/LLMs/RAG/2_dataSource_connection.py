@@ -25,7 +25,7 @@ openai_client = AzureOpenAI(
     api_version="2024-06-01"
 )
 
-datasource_name = "rag-robotics-chat-datasource"
+datasource_name = "rag-robotics-docs-datasource"
 credential = AzureKeyCredential(AZURE_SEARCH_ADMIN_KEY)
 
 # Create a data source 
