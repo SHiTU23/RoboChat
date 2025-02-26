@@ -7,6 +7,8 @@
     input query: pick the green cube and place it in position [10, 20].
     response: 
         {
+        "query": "pick the green cube and place it in position [10, 20].",
+        "robotics_task": TRUE,
         "action": "pick and place",
         "objects": {
                     "pick": "the green cube",
@@ -44,10 +46,11 @@ chat_prompt = [
             {
                 "type": "text",
                 "text": '''
-                        You are programming assistant, split the input query into action and objects and return the reault in json format. 
+                        You are programming assistant, split the input query into action and objects and return the reault in json format if the query was in the form of a robotic task. otherwise, return the input query as it is. 
                         output examples:  
-                        if input query: 'pick the blue cube'; return 'action':'pick', 'objects':{'pick':'the blue cube'}. 
-                        or input query: 'pick the blue cube and place on left side of table'; expected return: 'action':'pick and place', 'objects':{'pick':'the blue cube', 'place':'left side of table'}
+                        if the query is not a robotic task, return {'query': 'input query', 'robotics_task': False}.
+                        if input query: 'pick the blue cube'; return {'query': 'pick the blue cube', 'robotics_task': True, 'action':'pick', 'objects':{'pick':'the blue cube'}}. 
+                        or input query: 'pick the blue cube and place on left side of table'; expected return: {'query': 'pick the blue cube and place on left side of table', 'robotics_task': True, 'action':'pick and place', 'objects':{'pick':'the blue cube', 'place':'left side of table'}}
                         '''
             }
         ]
