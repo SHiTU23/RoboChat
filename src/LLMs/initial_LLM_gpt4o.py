@@ -10,6 +10,8 @@ endpoint = os.getenv("ENDPOINT_URL", "https://aihubthesiswes8755517667.openai.az
 deployment = os.getenv("DEPLOYMENT_NAME", "gpt-4o")  
 subscription_key = os.getenv("AZURE_OPENAI_API_KEY", "16e5XT0Seh7kF6knUDWkQsLodd3otgpNR3uJuCOkyXJlVK9181MAJQQJ99BBACfhMk5XJ3w3AAAAACOGguO1")  
 
+input_query = input("Waht task would you like to be done by the robot? >> ")
+
 # Initialize Azure OpenAI Service client with key-based authentication    
 client = AzureOpenAI(  
     azure_endpoint=endpoint,  
@@ -26,7 +28,12 @@ chat_prompt = [
         "content": [
             {
                 "type": "text",
-                "text": "You are programming assistant, split the input query into action and objects and return the reault in json format. examples:  if input query: 'pick the blue cube'; return 'action':'pick', 'objects':{'pick':'the blue cube'}. or input query: 'pick the blue cube and place on left side of table'; expected return: 'action':'pick and place', 'objects':{'pick':'the blue cube', 'place':'left side of table'}"
+                "text": '''
+                        You are programming assistant, split the input query into action and objects and return the reault in json format. 
+                        output examples:  
+                        if input query: 'pick the blue cube'; return 'action':'pick', 'objects':{'pick':'the blue cube'}. 
+                        or input query: 'pick the blue cube and place on left side of table'; expected return: 'action':'pick and place', 'objects':{'pick':'the blue cube', 'place':'left side of table'}
+                        '''
             }
         ]
     },
@@ -35,31 +42,27 @@ chat_prompt = [
         "content": [
             {
                 "type": "text",
-                "text": "place on the highest cube."
+                # "text": "place on the highest cube."
+                # "text": "pick the blue cube."
+                # "text": "pick the green cube and place it 0.3 cm more to the right."
+                "text": input_query
             }
         ]
     },
-    # {
-    #     "role": "assistant",
-    #     "content": [
-    #         {
-    #             "type": "text",
-    #             "text": "It seems like you're referring to a specific task, such as selecting a blue cube from a set of objects. However, since I can't see or interact with physical objects, could you clarify or provide more context? For example, are you working in a virtual environment, describing a problem, or asking about coding a solution? Let me know how I can help!"
-    #         }
-    #     ]
-    # }
 ] 
     
 # Include speech result if speech is enabled  
 messages = chat_prompt  
     
+print("Thinking ...")
+
 # Generate the completion  
 completion = client.chat.completions.create(  
     model=deployment,
     messages=messages,
     max_tokens=800,  
-    temperature=0.7,  
-    top_p=0.95,  
+    temperature=0.5,  
+    top_p=0.7,  
     frequency_penalty=0,  
     presence_penalty=0,
     stop=None,  
@@ -68,4 +71,6 @@ completion = client.chat.completions.create(
 
 response = completion.to_json()
 response = json.loads(response)
-print(response["choices"][0]["message"]["content"])  
+
+print("-" * 10)
+print("Response is: \n",response["choices"][0]["message"]["content"])  
