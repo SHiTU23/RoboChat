@@ -37,16 +37,16 @@ for query in queries:
         image_path = pic_dir + image_name
 
         clip_process_time_start = time.time()
-        clip_features, clip_seg_img, clip_bb_img = clipseg.segment_object(image_path, query)
+        clip_features, clip_seg_img, clip_bb_img = clipseg.segment_object(image_path, query, return_most_probable=True)
         clip_process_time_end = time.time()
 
         process_time.append(clip_process_time_end - clip_process_time_start)
 
         print(f"CLIPSeg features: {clip_features}")
 
-        clip_seg_img = cv2.cvtColor(clip_seg_img, cv2.COLOR_BGR2RGB)
+        clip_bb_img = cv2.cvtColor(clip_bb_img, cv2.COLOR_BGR2RGB)
 
-        axes[i].imshow(clip_seg_img)
+        axes[i].imshow(clip_bb_img)
         axes[i].set_title(f"image{i}: {image_name}")
 
         # Remove axes for clean display
@@ -57,7 +57,7 @@ for query in queries:
     fig.suptitle(f"query: '{query}', average process time: {average_process_time:.2f}s")
 
     plt.tight_layout()
-    plt.savefig(save_path + f'{query}_T0.2.jpg')
+    plt.savefig(save_path + f'ONE_{query}.jpg')
     print("image saved")
     # plt.show()
 
