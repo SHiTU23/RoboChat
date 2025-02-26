@@ -65,7 +65,7 @@ class Grounding_Dino:
                     
                     label_text = f"{label}: {score:.3f}"
                     self.detected_image = cv2.rectangle(image_cv, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 1)
+                    self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             else:
                 for i, score in enumerate(results[0]["scores"]):
                     score = float(score)
@@ -87,7 +87,7 @@ class Grounding_Dino:
                 
                 label_text = f"{label}: {highest_score:.3f}"
                 self.detected_image = cv2.rectangle(image_cv, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         else:
             print(f"{text} not found in the image.")
 
