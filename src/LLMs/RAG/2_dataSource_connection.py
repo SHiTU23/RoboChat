@@ -17,7 +17,8 @@ AZURE_EMBEDDING_MODEL = "text-embedding-3-large"
 
 AZURE_SEARCH_SERVICE = "https://thesis-west-aisearch.search.windows.net"
 AZURE_SEARCH_ADMIN_KEY = "RyHN2fSd1HrLqlwpfUuTbVYwmTO4W9rR3OxO9FZko6AzSeDsPllI"
-AZURE_STORAGE_CONNECTION_STRING = "ContainerSharedAccessUri=https://aihubthesiswes4047422348.blob.core.windows.net/robotics-data?sp=rl&st=2025-02-25T12:52:05Z&se=2025-02-25T20:52:05Z&spr=https&sv=2022-11-02&sr=c&sig=2uU3Mo%2FHX4uatg44VoAaOi3SCrpRhfOSQW%2Fbdlk2PX8%3D"
+### for the connection string, go to Azure portal, storage account, under datastorage go to containers, choose your container name and go to Shared access token under Setting menu, and gnerate one and pick the URL 
+AZURE_STORAGE_CONNECTION_STRING = "ContainerSharedAccessUri=https://aihubthesiswes4047422348.blob.core.windows.net/robotics-data?sp=rl&st=2025-02-26T09:48:15Z&se=2025-06-01T17:48:15Z&spr=https&sv=2022-11-02&sr=c&sig=1ugZhqeGwuwMrH89Bq0SqnYwS0QMzH1tyHEpqvtJDTM%3D"
 
 openai_client = AzureOpenAI(
     azure_endpoint=AZURE_OPENAI_ENDPOINT,
