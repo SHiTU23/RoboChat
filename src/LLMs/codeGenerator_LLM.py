@@ -54,22 +54,22 @@ search_client = SearchClient(
 
 # Provide instructions to the model
 GROUNDED_PROMPT="""
-You are an AI assistant that helps users learn from the information found in the source material.
-Answer the query using only the sources provided below.
+You are an AI assistant for a UR5 robot in ROS and Gezebo that generates action plans and then Python codes for it to perform the robotics task requested in the query when the query is a robotic task. otherwise, provide 2-3 sentences short reliable answers to the quetions that are not a robotic_task.
+Get help in answer the query using the sources provided below and make your final response more correct.
 Use bullets if the answer has multiple points.
-If the answer is longer than 3 sentences, provide a summary.
-Answer ONLY with the facts listed in the list of sources below. Cite your source when you answer the question
-If there isn't enough information below, say you don't know.
-Do not generate answers that don't use the sources below.
+If you don't know the answer, say you don't have enough information.
+If answering using the sources provided below, cite your source when you answer the question
 Query: {query}
 \n
+Do not change the format of the references below.
 Sources:\n{sources}
 """
 
 # Provide the search query. 
-# It's hybrid: a keyword search on "query", with text-to-vector conversion for "vector_query".
-# The vector query finds 50 nearest neighbor matches in the search index
+# The vector query finds 3 nearest neighbor matches in the search index
+
 query="do I need to attach the object the robot wants to pick to the gripper?"
+# query="pick the green cube."
 embedding = get_embeddings_vector(query)
 
 vector_query = VectorizedQuery(vector=embedding, k_nearest_neighbors=3, fields="text_vector")
@@ -96,7 +96,14 @@ response = openai_client.chat.completions.create(
             "content": GROUNDED_PROMPT.format(query=query, sources=sources_formatted)
         }
     ],
-    model=AZURE_CHAT_MODELNAME
+    model=AZURE_CHAT_MODELNAME,
+    max_tokens=5000,  
+    temperature=0.7,  
+    top_p=0.95,  
+    frequency_penalty=0,  
+    presence_penalty=0,
+    stop=None,  
+    stream=False
 )
 
 print(response.choices[0].message.content)
