@@ -31,7 +31,7 @@ class Grounding_Dino:
 
         ### return values
         object_features = {'name' : "",
-                           'probability' : 0,
+                           'probability' : [],
                            'bounding_box' : []} ## x, y, w, h
         image_with_bounding_boxed = None
 
@@ -51,7 +51,7 @@ class Grounding_Dino:
             text_threshold=0.3,
             target_sizes=[image.size[::-1]]
         )
-        print(results)
+        # print(results)
 
         if len(results[0]["boxes"]) != 0:
             self.obj_detected = True
@@ -60,8 +60,13 @@ class Grounding_Dino:
         if self.obj_detected:
             if all_objects:
                 for box, score, label in zip(results[0]["boxes"], results[0]["scores"], results[0]["labels"]):
-                    print(f"box: {box}, score: {score}, label: {label}")
+                    # print(f"box: {box}, score: {score}, label: {label}")
                     x1, y1, x2, y2 = map(int, box.tolist())
+                    w = abs(x2 - x1)
+                    h = abs(y2 - y1)
+                    object_features["bounding_box"].append([x1, y1, w, h])
+                    object_features["probability"].append(float(score))
+                    object_features["name"] = label
                     
                     label_text = f"{label}: {score:.3f}"
                     self.detected_image = cv2.rectangle(image_cv, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -77,7 +82,7 @@ class Grounding_Dino:
                 label = results[0]["labels"][object_indx]
                 object_features["name"] = label
                 object_features["probability"] = float(highest_score)
-                print(highest_score)
+                # print(highest_score)
 
                 x1, y1, x2, y2 = map(int, box.tolist()) ## box is a tensor
                 w = abs(x2 - x1)

@@ -65,11 +65,11 @@ class CLIPSeg:
         _logits = _outputs.logits  # Shape: (num_texts, H, W)
 
         probs = torch.sigmoid(_logits).detach().numpy()  # Convert logits to probabilities
-        print(len(probs))
+        # print(len(probs))
 
         for i, text in enumerate(texts):
             object_score = probs[i].max()
-            print(f"Object '{text}', {object_score:.2f}")
+            # print(f"Object '{text}', {object_score:.2f}")
 
             mask = (probs[i] >= SEGMENTATION_THRESHOLD).astype(np.uint8) * 255  # Convert to binary mask
             mask_resized = cv2.resize(mask, (original_w, original_h), interpolation=cv2.INTER_NEAREST)
@@ -82,7 +82,7 @@ class CLIPSeg:
 
                 self.detected_object_name = self.detected_object_name + f'_T_{SEGMENTATION_THRESHOLD}'
 
-                print(f"Object '{self.detected_object_name}' detected with max probability {object_score:.2f}")
+                # print(f"Object '{self.detected_object_name}' detected with max probability {object_score:.2f}")
                 
                 ### find contours of the segmented object
                 contours, _ = cv2.findContours(mask_resized, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
