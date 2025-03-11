@@ -9,7 +9,7 @@ import json
 
 
 
-class second_layer_LLM:
+class codeGenerator_LLM:
     def __init__(self):
         self._AZURE_OPENAI_ENDPOINT = "https://aihubthesiswes8755517667.openai.azure.com/"
         self._AZURE_CHAT_MODELNAME = "gpt-4o-codeGenerator"
@@ -107,7 +107,7 @@ class second_layer_LLM:
                                                                 model=self._AZURE_CHAT_MODELNAME,
                                                                 max_tokens=5000,  
                                                                 temperature=0.5,  
-                                                                top_p=0.95,  
+                                                                top_p=0.6,  
                                                                 frequency_penalty=0,  
                                                                 presence_penalty=0,
                                                                 stop=None,  
@@ -134,7 +134,7 @@ class second_layer_LLM:
             return None 
 
 if __name__ == "__main__":
-    llm = second_layer_LLM()
+    llm = codeGenerator_LLM()
     while True:
         query = input("Enter query: ")
         response = llm.generate_answer(query, RAG_inUse=True)
