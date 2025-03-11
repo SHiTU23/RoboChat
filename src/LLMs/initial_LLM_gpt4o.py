@@ -83,8 +83,6 @@ class task_interpreter_LLM:
                                         )
                         }
         
-        print("System is now Ready.")
-
     def interpret(self, query):
         user_message = {
                         "role": "user",
