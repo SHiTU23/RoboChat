@@ -23,72 +23,105 @@ import base64
 from openai import AzureOpenAI  
 import json
 
-endpoint = os.getenv("ENDPOINT_URL", "https://aihubthesiswes8755517667.openai.azure.com/")  
-deployment = os.getenv("DEPLOYMENT_NAME", "gpt-4o")  
-subscription_key = os.getenv("AZURE_OPENAI_API_KEY", "16e5XT0Seh7kF6knUDWkQsLodd3otgpNR3uJuCOkyXJlVK9181MAJQQJ99BBACfhMk5XJ3w3AAAAACOGguO1")  
+class task_interpreter:
+    def __init__(self):
+        __endpoint = os.getenv("ENDPOINT_URL", "https://aihubthesiswes8755517667.openai.azure.com/")  
+        self.__deployment = os.getenv("DEPLOYMENT_NAME", "gpt-4o")  
+        __subscription_key = os.getenv("AZURE_OPENAI_API_KEY", "16e5XT0Seh7kF6knUDWkQsLodd3otgpNR3uJuCOkyXJlVK9181MAJQQJ99BBACfhMk5XJ3w3AAAAACOGguO1")  
 
-input_query = input("Waht task would you like to be done by the robot? >> ")
+        # Initialize Azure OpenAI Service client with key-based authentication    
+        self.client = AzureOpenAI(  
+            azure_endpoint=__endpoint,  
+            api_key=__subscription_key,  
+            api_version="2024-05-01-preview",
+        )
+        self.__system_message = {
+                            "role": "system",
+                            "content": (
+                                        '''
+                                        You are a programming assistant that analyzes input queries to determine if they represent a robotic task. Your response should be in JSON format.
 
-# Initialize Azure OpenAI Service client with key-based authentication    
-client = AzureOpenAI(  
-    azure_endpoint=endpoint,  
-    api_key=subscription_key,  
-    api_version="2024-05-01-preview",
-)
-    
+                                        Instructions:
+                                        - If the input query does not represent a robotic task, simply return the query as is along with an indicator that it is not a robotics task.
+                                        - If the input query describes a robotic task, split it into its action and objects and return these details in JSON format.
+
+                                        Output Examples:
+                                        1. For a non-robotic query:
+                                        Input: "What is the weather today?"
+                                        Output: 
+                                        {
+                                            "query": "What is the weather today?",
+                                            "robotics_task": false
+                                        }
+
+                                        2. For a single-action robotic task:
+                                        Input: "pick the blue cube"
+                                        Output:
+                                        {
+                                            "query": "pick the blue cube",
+                                            "robotics_task": true,
+                                            "action": "pick",
+                                            "objects": {
+                                            "pick": "the blue cube"
+                                            }
+                                        }
+
+                                        3. For a multi-action robotic task:
+                                        Input: "pick the blue cube and place on left side of table"
+                                        Output:
+                                        {
+                                            "query": "pick the blue cube and place on left side of table",
+                                            "robotics_task": true,
+                                            "action": "pick and place",
+                                            "objects": {
+                                            "pick": "the blue cube",
+                                            "place": "left side of table"
+                                            }
+                                        }
+
+                                        '''
+                                        )
+                        }
+        
+        print("System is now Ready.")
+
+    def interpret(self, query):
+        user_message = {
+                        "role": "user",
+                        "content": query
+                        }
+        
+        completion = self.client.chat.completions.create(  
+                                                            model=self.__deployment,
+                                                            messages=[self.__system_message,user_message],
+                                                            max_tokens=800,  
+                                                            temperature=0.4,  
+                                                            top_p=0.5,  
+                                                            frequency_penalty=0,  
+                                                            presence_penalty=0,
+                                                            stop=None,  
+                                                            stream=False
+                                                        )
+
+        response = completion.to_json()
+        response = json.loads(response)
+        return response["choices"][0]["message"]["content"]
+
+            
 
 
-#Prepare the chat prompt 
-chat_prompt = [
-    {
-        "role": "system",
-        "content": [
-            {
-                "type": "text",
-                "text": '''
-                        You are programming assistant, split the input query into action and objects and return the reault in json format if the query was in the form of a robotic task. otherwise, return the input query as it is. 
-                        output examples:  
-                        if the query is not a robotic task, return {'query': 'input query', 'robotics_task': False}.
-                        if input query: 'pick the blue cube'; return {'query': 'pick the blue cube', 'robotics_task': True, 'action':'pick', 'objects':{'pick':'the blue cube'}}. 
-                        or input query: 'pick the blue cube and place on left side of table'; expected return: {'query': 'pick the blue cube and place on left side of table', 'robotics_task': True, 'action':'pick and place', 'objects':{'pick':'the blue cube', 'place':'left side of table'}}
-                        '''
-            }
-        ]
-    },
-    {
-        "role": "user",
-        "content": [
-            {
-                "type": "text",
-                # "text": "place on the highest cube."
-                # "text": "pick the blue cube."
-                # "text": "pick the green cube and place it 0.3 cm more to the right."
-                "text": input_query
-            }
-        ]
-    },
-] 
-    
-# Include speech result if speech is enabled  
-messages = chat_prompt  
-    
-print("Thinking ...")
+# "text": "place on the highest cube."
+# "text": "pick the blue cube."
+# "text": "pick the green cube and place it 0.3 cm more to the right."
 
-# Generate the completion  
-completion = client.chat.completions.create(  
-    model=deployment,
-    messages=messages,
-    max_tokens=800,  
-    temperature=0.5,  
-    top_p=0.7,  
-    frequency_penalty=0,  
-    presence_penalty=0,
-    stop=None,  
-    stream=False
-)
 
-response = completion.to_json()
-response = json.loads(response)
+if __name__ == "__main__":
+    intrpreter = task_interpreter()
+    while True:
+        input_query = input("Waht task would you like to be done by the robot? >> ")
+        response = intrpreter.interpret(input_query)
+        r = json.loads(response)
+        print(r)
 
-print("-" * 10)
-print("Response is: \n",response["choices"][0]["message"]["content"])  
+        print("type: ", type(r))
+        print("-"*20)
