@@ -42,42 +42,60 @@ class codeGenerator_LLM:
         embedding = response.data[0].embedding
         return embedding
 
-    def generate_answer(self, query, RAG_inUse=True):
+    def generate_answer(self, input_query, RAG_inUse=True):
         if RAG_inUse:
             # Provide instructions to the model
-            _GROUNDED_PROMPT="""
-            You are an AI assistant for a UR5 robot in ROS and Gezebo. Your task is to generate action plans and then Python codes for them to perform the robotics task requested in the query when the query is a robotic task, otherwise, provide a brief (2-3 sentence) reliable answer to the quetions that are not a robotic_task.
-            
-            - When generating a code, provide a step-by-step plan for the task.
-            - Get help from the provided resourcesfor answering to the query and make your final response more correct. 
-            - Do not use methods of the class from the provided resources in the answer directly, instead use the necessary parts in it for performimng the whole task.
-            - Refer to the chat history for context if needed.
-            - Use bullet points for multi-point answers.
-            - If you don't know the answer, say you don't have enough information.
-            - references the sources when using them.
-            
-            At the end, include a concise summary labeled **"history:"** for future reference.
-            
-            Query: {query}
-            \n
-            ++++++++++++++++
-            Chat_history: {history}   
-            \n
-            Do not change the format of the references below.
-            Sources:\n{sources}
-            """
+            _GROUNDED_PROMPT='''
+            You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate codes and action plans. You will receive user queries in JSON format that may or may not be robotics tasks. If the query **is** a robotics task, you will also receive a second JSON containing the object's location.
+
+            Your objectives:
+            1. If the query is **not** a robotics task, provide a brief (2–3 sentence) reliable answer.
+            2. If the query **is** a robotics task:
+            - Generate a step-by-step action plan.
+            - Produce Python code for the UR5 robot to perform the requested actions.
+            - Use the provided resources for correctness, but do not copy methods verbatim.
+            - Give a list of citation of sources when they are used.
+            - Refer to chat history if needed.
+            3. End your response with a concise summary labeled **"history:"** for future reference.
+            4. Use bullet points for multi-point answers.
+            5. If you lack sufficient information, state that you do not have enough details.
+
+            **Inputs:**
+            - JSON 1 (always provided): e.g., {{
+                                                "query": "pick the blue cube and place on left side of table",
+                                                "robotics_task": true,
+                                                "action": "pick and place",
+                                                "objects": {{
+                                                "pick": "the blue cube",
+                                                "place": "left side of table"
+                                                }}
+                                            }}
+            - JSON 2 (provided **only** if `robotics_task` is true): e.g., {{"object_name": "the blue cube", 
+                                                                            "object_location": [378, 172] }}
+
+            ---------------
+
+            **Query:** {user_query}
+
+            +++++++++++++++
+            Chat_history: {history}
+
+            Sources:
+            {sources}
+
+            '''
 
             # Provide the search query. 
             # The vector query finds 3 nearest neighbor matches in the search index
             # query="pick the green cube."
-            _embedding = self.get_embeddings_vector(query)
+            _embedding = self.get_embeddings_vector(input_query)
             _vector_query = VectorizedQuery(vector=_embedding, k_nearest_neighbors=3, fields="text_vector")
 
             # Set up the search results and the chat thread.
             # Retrieve the selected fields from the search index related to the question.
             # Search results are limited to the top 5 matches. Limiting top can help you stay under LLM quotas.
             search_results = self._search_client.search(
-                                                        search_text=query,
+                                                        search_text=input_query,
                                                         vector_queries= [_vector_query],
                                                         select=["title", "chunk"],
                                                         top=5,
@@ -85,7 +103,7 @@ class codeGenerator_LLM:
 
             # Use a unique separator to make the sources distinct, such as === 
             _sources_formatted = "=================\n".join([f'TITLE: {document["title"]}, CONTENT: {document["chunk"]}' for document in search_results])
-            _content = _GROUNDED_PROMPT.format(query=query, history=self._chat_history, sources=_sources_formatted)
+            _content = _GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history, sources=_sources_formatted)
 
         else:
             _GROUNDED_PROMPT = """
@@ -93,9 +111,9 @@ class codeGenerator_LLM:
             Use bullet points if the answer has multiple points.
             If you don't know the answer, say you don't have enough information.
             At the end give a very short summary to be used as a history in the chatm label "history:".
-            Query: {query}
+            Query: {user_query}
             """
-            _content = _GROUNDED_PROMPT.format(query=query)
+            _content = _GROUNDED_PROMPT.format(user_query=input_query)
 
         response = self._openai_client.chat.completions.create(
                                                                 messages=[
@@ -116,12 +134,11 @@ class codeGenerator_LLM:
         llm_response = response.choices[0].message.content
         summary = self.extract_summary(llm_response)
         history = {
-                    "query": query,
+                    "query": input_query,
                     "summary": summary
                  }
         self._chat_history.append(history)
-
-
+        print("Chat history: \n", self._chat_history)
         return llm_response
     
     def extract_summary(self, text):
