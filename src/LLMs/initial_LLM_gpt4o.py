@@ -105,7 +105,9 @@ class task_interpreter_LLM:
 
         response = completion.to_json()
         response = json.loads(response)
-        return response["choices"][0]["message"]["content"]
+        textual_answer = response["choices"][0]["message"]["content"]
+        json_answer = json.loads(textual_answer)
+        return textual_answer, json_answer
 
             
 
@@ -119,9 +121,8 @@ if __name__ == "__main__":
     intrpreter = task_interpreter_LLM()
     while True:
         input_query = input("Waht task would you like to be done by the robot? >> ")
-        response = intrpreter.interpret(input_query)
-        r = json.loads(response)
-        print(r)
+        txt_response, json_response = intrpreter.interpret(input_query)
+        print(txt_response)
 
-        print("type: ", type(r))
+        print(f"json: {json_response}")
         print("-"*20)
