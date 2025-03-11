@@ -46,42 +46,26 @@ class second_layer_LLM:
         if RAG_inUse:
             # Provide instructions to the model
             _GROUNDED_PROMPT="""
-            You are an AI assistant for a UR5 robot in ROS and Gazebo. Your task is to generate action plans and Python code for robotic queries. If the query is not robotics-related, provide a brief (2-3 sentence) reliable answer.
-
-            - Use the provided sources to improve accuracy.
-            - Extract only the necessary parts from sources, not entire methods.
-            - Refer to the chat history for context.
-            - Use bullet points for multi-point answers.
-            - If unsure, state that you lack enough information.
-            - Cite sources when using them.
-
-            At the end, include a concise summary labeled **"history:"** for future reference.
-
-            Query: {query}
-
-            Chat history:
-            {history}
-
-            Sources:
-            {sources}
-            """
-
-            # You are an AI assistant for a UR5 robot in ROS and Gezebo that generates action plans and then Python codes for it to perform the robotics task requested in the query when the query is a robotic task. otherwise, provide 2-3 sentences short reliable answers to the quetions that are not a robotic_task.
-            # Get help in answer the query using the sources provided below and make your final response more correct. 
-            # Do not use methods of the class from the provided resources in the answer directly, instead use the necessary parts in it for performimng the whole task.
-            # Also, you have the chat history to refer to the previous queries and answers.
-            # Use bullet points if the answer has multiple points.
-            # If you don't know the answer, say you don't have enough information.
-            # If answering using the sources provided below, cite your source when you answer the question.
-            # At the end give a very short summary to be used as a history in the chatm label "history:".
-            # Query: {query}
-            # \n
-            # Chat history:
-            # {history}   
-            # \n
-            # Do not change the format of the references below.
-            # Sources:\n{sources}
+            You are an AI assistant for a UR5 robot in ROS and Gezebo. Your task is to generate action plans and then Python codes for them to perform the robotics task requested in the query when the query is a robotic task, otherwise, provide a brief (2-3 sentence) reliable answer to the quetions that are not a robotic_task.
             
+            - When generating a code, provide a step-by-step plan for the task.
+            - Get help from the provided resourcesfor answering to the query and make your final response more correct. 
+            - Do not use methods of the class from the provided resources in the answer directly, instead use the necessary parts in it for performimng the whole task.
+            - Refer to the chat history for context if needed.
+            - Use bullet points for multi-point answers.
+            - If you don't know the answer, say you don't have enough information.
+            - references the sources when using them.
+            
+            At the end, include a concise summary labeled **"history:"** for future reference.
+            
+            Query: {query}
+            \n
+            ++++++++++++++++
+            Chat_history: {history}   
+            \n
+            Do not change the format of the references below.
+            Sources:\n{sources}
+            """
 
             # Provide the search query. 
             # The vector query finds 3 nearest neighbor matches in the search index
@@ -137,7 +121,7 @@ class second_layer_LLM:
                  }
         self._chat_history.append(history)
 
-        
+
         return llm_response
     
     def extract_summary(self, text):
