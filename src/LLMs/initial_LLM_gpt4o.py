@@ -23,7 +23,7 @@ import base64
 from openai import AzureOpenAI  
 import json
 
-class task_interpreter:
+class task_interpreter_LLM:
     def __init__(self):
         __endpoint = os.getenv("ENDPOINT_URL", "https://aihubthesiswes8755517667.openai.azure.com/")  
         self.__deployment = os.getenv("DEPLOYMENT_NAME", "gpt-4o")  
@@ -116,7 +116,7 @@ class task_interpreter:
 
 
 if __name__ == "__main__":
-    intrpreter = task_interpreter()
+    intrpreter = task_interpreter_LLM()
     while True:
         input_query = input("Waht task would you like to be done by the robot? >> ")
         response = intrpreter.interpret(input_query)
