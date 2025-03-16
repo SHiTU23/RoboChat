@@ -18,7 +18,7 @@ class codeGenerator_LLM:
         self._AZURE_SEARCH_SERVICE = "https://thesis-west-aisearch.search.windows.net"
         self._AZURE_SEARCH_ADMIN_KEY = "RyHN2fSd1HrLqlwpfUuTbVYwmTO4W9rR3OxO9FZko6AzSeDsPllI"
 
-        _index_name = "docs-index"
+        _index_name = "robotics-docs-index"
 
         _credential = AzureKeyCredential(self._AZURE_SEARCH_ADMIN_KEY)
         self._openai_client = AzureOpenAI(
@@ -86,10 +86,10 @@ class codeGenerator_LLM:
             '''
 
             # Provide the search query. 
-            # The vector query finds 3 nearest neighbor matches in the search index
+            # The vector query finds 5 nearest neighbor matches in the search index
             # query="pick the green cube."
             _embedding = self.get_embeddings_vector(input_query)
-            _vector_query = VectorizedQuery(vector=_embedding, k_nearest_neighbors=3, fields="text_vector")
+            _vector_query = VectorizedQuery(vector=_embedding, k_nearest_neighbors=5, fields="text_vector")
 
             # Set up the search results and the chat thread.
             # Retrieve the selected fields from the search index related to the question.
@@ -138,7 +138,7 @@ class codeGenerator_LLM:
                     "summary": summary
                  }
         self._chat_history.append(history)
-        print("Chat history: \n", self._chat_history)
+        # print("Chat history: \n", self._chat_history)
         return llm_response
     
     def extract_summary(self, text):
