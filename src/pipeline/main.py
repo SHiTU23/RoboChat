@@ -43,21 +43,25 @@ while True:
     key = cv2.waitKey(1) & 0xFF
 
     ## input the query
-    query = input("Input your query here. >> ")
+    query = input("Input your query here. [Enter 'q' to quite.] >> ")
 
     if query == 'q':
         break
 
     text_response, json_response = task_interpreter.interpret(query)
 
+    print("*"*10, "\n")
     print("Task interpreted: \n", text_response)
-    print("==" * 10)
+    print("*" * 10)
 
     ### json_response parameters: "query", "robotics_task": TRUE, "action": "pick and place", "objects": {"pick", "place"}
     is_robotic_task = json_response["robotics_task"]
     if is_robotic_task:
         object2pick_name = json_response["objects"]["pick"]
         print("object to pick :", object2pick_name)
+
+        print("*"*10, "\n")
+        print("Processing the image ... ")
 
         ### give the name of the requested object to the VLM
         VLm_result = object_retriever.retrieve_object(image_path, object2pick_name)
@@ -92,10 +96,10 @@ while True:
                         """
         
     final_response = code_generator.generate_answer(next_query, RAG_inUse=True)
+    print("*"*10, "\n")
     print("Final Response: \n", final_response)
         #### add the robot coordinate changes for the object pose
 
     code = extract_code_from_txt(final_response)
-    print("////////////// \n Code: \n", code)
     
 cv2.destroyAllWindows()
