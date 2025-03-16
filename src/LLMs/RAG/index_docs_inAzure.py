@@ -14,16 +14,16 @@ AZURE_EMBEDDING_MODEL = "text-embedding-3-large"
 AZURE_SEARCH_SERVICE = "https://thesis-west-aisearch.search.windows.net"
 AZURE_SEARCH_ADMIN_KEY = "RyHN2fSd1HrLqlwpfUuTbVYwmTO4W9rR3OxO9FZko6AzSeDsPllI"
 ### for the connection string, go to Azure portal, storage account, under datastorage go to containers, choose your container name and go to Shared access token under Setting menu, and gnerate one and pick the URL 
-AZURE_BLOB_SAS_URL = "ContainerSharedAccessUri=https://aihubthesiswes4047422348.blob.core.windows.net/robotics-data?sp=racwl&st=2025-03-02T10:08:14Z&se=2025-06-01T18:08:14Z&spr=https&sv=2022-11-02&sr=c&sig=ldcqMmhVNdjePhmTf0g4Ti8pth3Y3A%2FK0hMQgSCIxe0%3D"
+AZURE_BLOB_SAS_URL = "ContainerSharedAccessUri=https://aihubthesiswes4047422348.blob.core.windows.net/robotics-data?sp=racwdl&st=2025-03-16T18:51:11Z&se=2025-06-30T02:51:11Z&spr=https&sv=2022-11-02&sr=c&sig=RWFehsUP0csD8HO6Aqjl%2Fpzd6M8MVYX%2FGuHKB3MK4wA%3D"
 credential = AzureKeyCredential(AZURE_SEARCH_ADMIN_KEY)
 
 
 ### final names for the index, datasource, skillset and indexer
-index_name = "docs-index"
-datasource_name = "docs-ds"
+index_name = "robotics-docs-index"
+datasource_name = "robotics-docs-ds"
 CONTAINER_NAME = "robotics-data"
-skillset_name = "docs-ss"
-indexer_name = "docs-idxr" 
+skillset_name = "robotics-docs-ss"
+indexer_name = "robotics-docs-idxr" 
 
 
 ## First step: create the schema for the index
