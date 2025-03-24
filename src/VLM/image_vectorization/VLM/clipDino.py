@@ -104,7 +104,7 @@ class ClipDino:
             return False
         return True
 
-    def extract_centeroid(self):
+    def extract_centeroid(self, bounding_box):
         """
         Finds the center of the brightest surface within a given bounding box.
             
@@ -112,7 +112,7 @@ class ClipDino:
             tuple: The center coordinates (x, y) in the original image coordinate system,
                    or None if no bright surface is found.
         """
-        x, y, w, h = self.final_detected_object_bb
+        x, y, w, h = bounding_box
         x_max, y_max = x + w, y + h
         center_point = None
 
@@ -175,13 +175,14 @@ if __name__ == "__main__":
 
     clip_dino_obj = ClipDino()
     query = "blue cube"
-    result = clip_dino_obj.retrieve_object(image_path, query)
+    allcubes_bbs = clip_dino_obj.find_all_cubes(image_path)
+    result = clip_dino_obj.retrieve_object(query)
     
     if result is not None:
         final_bb, utilized_model = result
         print("Utilized model:", utilized_model)
        
-        center_point = clip_dino_obj.extract_centeroid()
+        center_point = clip_dino_obj.extract_centeroid(final_bb)
         print(center_point)
         image = clip_dino_obj.image_retrivedObject()
     else:
