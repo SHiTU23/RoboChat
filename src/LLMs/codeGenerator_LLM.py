@@ -46,7 +46,7 @@ class codeGenerator_LLM:
         if RAG_inUse:
             # Provide instructions to the model
             _GROUNDED_PROMPT='''
-            You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate codes and action plans. You will receive user queries in JSON format that may or may not be robotics tasks. If the query **is** a robotics task, you will also receive a second JSON containing the object's location.
+            You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate codes and action plans. You will receive user queries in JSON format that may or may not be robotics tasks. If the query **is** a robotics task, you will also receive a list of JSONs containing of the object's location.
 
             Your objectives:
             1. If the query is **not** a robotics task, provide a brief (2–3 sentence) reliable answer.
@@ -67,11 +67,13 @@ class codeGenerator_LLM:
                                                 "action": "pick and place",
                                                 "objects": {{
                                                 "pick": "the blue cube",
-                                                "place": "left side of table"
+                                                "place": "left side of green cube"
                                                 }}
                                             }}
-            - JSON 2 (provided **only** if `robotics_task` is true): e.g., {{"object_name": "the blue cube", 
-                                                                            "object_location": [378, 172] }}
+            - List of JSONs (provided **only** if `robotics_task` is true): e.g., [{{"object_name": "the blue cube", 
+                                                                                    "object_location": [x1, y1] }},
+                                                                                    {{"object_name": "the green cube", 
+                                                                                    "object_location": [x2, y2] }}]
 
             ---------------
 
