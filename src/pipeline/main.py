@@ -9,9 +9,11 @@
 
 Steps:
     1. input the query
-    2. give the pick object name to VLM
-    3. put the object pose into json with its name
-    4. give the whole json from the first LLM + object pose to code generator 
+    2. Interpret the query into actions and objects
+    3. extract obejct names
+    4. give the object names to VLM
+    5 put the object pose into json with its name
+    6. give the whole json from the first LLM + object pose to code generator 
 """
 import os, sys
 import cv2
@@ -22,6 +24,7 @@ if PROJECT_ROOT not in sys.path:
     sys.path.append(PROJECT_ROOT)
 
 from LLMs.initial_LLM_gpt4o import task_interpreter_LLM
+from LLMs.objectName_extractor import object_interpreter_LLM
 from LLMs.codeGenerator_LLM import codeGenerator_LLM
 from VLM.image_vectorization.VLM.clipDino import ClipDino
 
@@ -34,11 +37,12 @@ image_path = os.path.join(images_dirpath, image_name)
 print("System is started ... ")
 
 task_interpreter = task_interpreter_LLM()
+objects_names_extractor = object_interpreter_LLM()
 code_generator = codeGenerator_LLM()
 object_retriever = ClipDino()
 
 print("System is Ready.")
-object_pose = []
+objects_poses = []
 
 while True:
     key = cv2.waitKey(1) & 0xFF
@@ -58,49 +62,71 @@ while True:
     ### json_response parameters: "query", "robotics_task": TRUE, "action": "pick and place", "objects": {"pick", "place"}
     is_robotic_task = json_response["robotics_task"]
     if is_robotic_task:
-        object2pick_name = json_response["objects"]["pick"]
-        print("object to pick :", object2pick_name)
+        objects_descriptions = f"{json_response["objects"]}"
+
+        ### we got a list of objetc names
+        objects_names = objects_names_extractor.interpret(objects_descriptions)
+        print(f"objects_names: {objects_names}")
 
         print("*"*10, "\n")
         print("Processing the image ... ")
 
-        ### give the name of the requested object to the VLM
-        VLm_result = object_retriever.retrieve_object(image_path, object2pick_name)
-        if VLm_result is not None:
-            print("Finding th eposition of the object in the image ....")
-            object_bbox, utilized_model_inDetection = VLm_result       
-            obejct_center_point = object_retriever.extract_centeroid()
+        if len(objects_names) != 0:
+            all_cubes_BBs = object_retriever.find_all_cubes(image_path)
 
-            ### structured pose of the object
-            object_pose.append({"object_name": object2pick_name, "object_location": obejct_center_point})
-            print(object_pose)
-            
-            retrieved_obejct_image = object_retriever.image_retrivedObject()
-            cv2.imshow("retrieved_obejct_image", retrieved_obejct_image)
-            cv2.waitKey(1)
+            ### spatial relations between cubes are described
+            if objects_names[0] == 1:
+                objects_poses.append({"all_cube_boundingBoxes": all_cubes_BBs})
 
-            print("Sending data to generate Action Plan and Generate Code ....")
-            ### send the object pose along with the json response from interpreter to code generator
-            next_query = f"""
-                            JSON 1:
-                            {json_response}
-                            -------------------
-                            List of JSONs:
-                            {object_pose}
-                        """
+            ### find objects in the image
+            for object_name in objects_names[1:]:
+                print(f"Processing the image for {object_name}... ")
 
-    ### the query is NOT a robotics task
-    else:
-        next_query = f"""
-                            JSON 1:
-                            {json_response}
-                        """
+                ### give the name of the requested object to the VLM
+                VLm_result = object_retriever.retrieve_object(object_name)
+                if VLm_result is not None:
+                    print("Finding th eposition of the object in the image ....")
+                    object_bbox, utilized_model_inDetection = VLm_result       
+                    obejct_center_point = object_retriever.extract_centeroid()
+
+                    ### structured pose of the object
+                    objects_poses.append({"object_name": object_name, "object_boundingBox": object_bbox, "object_center": obejct_center_point})
+                    print(objects_poses)
+                    
+                    retrieved_obejct_image = object_retriever.image_retrivedObject()
+                    cv2.imshow(f"retrieved_{object_name}", retrieved_obejct_image)
+                    cv2.waitKey(1)
+                else:
+                    print(f"Object {object_name} is not found in the image.")
+        else:
+            print("No object names found in the query.")
+
+    print(objects_poses)
+
+
+
+    #         print("Sending data to generate Action Plan and Generate Code ....")
+    #         ### send the object pose along with the json response from interpreter to code generator
+    #         next_query = f"""
+    #                         JSON 1:
+    #                         {json_response}
+    #                         -------------------
+    #                         List of JSONs:
+    #                         {object_pose}
+    #                     """
+
+    # ### the query is NOT a robotics task
+    # else:
+    #     next_query = f"""
+    #                         JSON 1:
+    #                         {json_response}
+    #                     """
         
-    final_response = code_generator.generate_answer(next_query, RAG_inUse=True)
-    print("*"*10, "\n")
-    print("Final Response: \n", final_response)
-        #### add the robot coordinate changes for the object pose
+    # final_response = code_generator.generate_answer(next_query, RAG_inUse=True)
+    # print("*"*10, "\n")
+    # print("Final Response: \n", final_response)
+    #     #### add the robot coordinate changes for the object pose
 
-    code = extract_code_from_txt(final_response)
+    # code = extract_code_from_txt(final_response)
     
-cv2.destroyAllWindows()
+# cv2.destroyAllWindows()
