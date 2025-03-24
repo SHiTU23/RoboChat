@@ -38,6 +38,7 @@ code_generator = codeGenerator_LLM()
 object_retriever = ClipDino()
 
 print("System is Ready.")
+object_pose = []
 
 while True:
     key = cv2.waitKey(1) & 0xFF
@@ -71,7 +72,7 @@ while True:
             obejct_center_point = object_retriever.extract_centeroid()
 
             ### structured pose of the object
-            object_pose = {"object_name": object2pick_name, "object_location": obejct_center_point}
+            object_pose.append({"object_name": object2pick_name, "object_location": obejct_center_point})
             print(object_pose)
             
             retrieved_obejct_image = object_retriever.image_retrivedObject()
@@ -84,7 +85,7 @@ while True:
                             JSON 1:
                             {json_response}
                             -------------------
-                            JSON 2:
+                            List of JSONs:
                             {object_pose}
                         """
 
