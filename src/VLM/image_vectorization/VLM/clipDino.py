@@ -35,7 +35,20 @@ class ClipDino:
         self.grounding_dino = Grounding_Dino()
         self.image_path = None  # Will be set in retrieve_object
 
-    def retrieve_object(self, image_path, object_name):
+    def find_all_cubes(self, image_path):
+        """
+        This functions finds all cubes and returns a list of their bounding boxes
+        BBs are [x, y, width, height]
+        """
+        self.image_path = image_path
+
+        # Step 1: Use DINO to detect all cubes in the scene
+        dino_all_features, _ = self.grounding_dino.detect_object(image_path, "cubes", all_objects=True)
+        self.all_objects_bbs = dino_all_features.get("bounding_box", [])
+        return self.all_objects_bbs
+
+
+    def retrieve_object(self, object_name):
         """
         1. Detect all cubes using Grounding DINO.
         2. Detect the requested object using CLIPSeg.
@@ -48,23 +61,17 @@ class ClipDino:
                    - detected_by is a ModelName enum indicating which model was used.
             If no objects are found at all, returns None.
         """
-        self.image_path = image_path
-
-        # Step 1: Use DINO to detect all cubes in the scene
-        dino_all_features, _ = self.grounding_dino.detect_object(image_path, "cubes", all_objects=True)
-        all_objects_bbs = dino_all_features.get("bounding_box", [])
-
         # Step 2: Use CLIPSeg to find the requested object
-        clip_features, _, _ = self.clipseg.segment_object(image_path, object_name, return_most_probable=True)
+        clip_features, _, _ = self.clipseg.segment_object(self.image_path, object_name, return_most_probable=True)
         clip_bb = clip_features.get("bounding_box", [])
         
         self.final_detected_object_bb = []
         detected_by = ModelName.Neither
 
-        if all_objects_bbs:
+        if self.all_objects_bbs:
             # If CLIPSeg returned a bounding box, try to find an overlapping DINO object.
             if clip_bb:
-                for box in all_objects_bbs:
+                for box in self.all_objects_bbs:
                     if self.is_overlap(box, clip_bb):
                         self.final_detected_object_bb = box
                         detected_by = ModelName.CLIP_Seg
@@ -72,7 +79,7 @@ class ClipDino:
                         break
             # If no overlapping box is found or CLIPSeg did not return a box, re-run DINO for the specific object.
             if not clip_bb or not self.final_detected_object_bb:
-                dino_features, _ = self.grounding_dino.detect_object(image_path, object_name, all_objects=False)
+                dino_features, _ = self.grounding_dino.detect_object(self.image_path, object_name, all_objects=False)
                 self.final_detected_object_bb = dino_features.get("bounding_box", [])
                 detected_by = ModelName.Grounding_Dino
                 print("Grounding DINO detected the object.")
