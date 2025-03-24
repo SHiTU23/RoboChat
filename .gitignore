@@ -3,3 +3,8 @@ src/LLMs/docs
 src/LLMs/outputs
 **/__pycache__
 .qodo
+
+CNN.py
+ViT_hybrid.py
+ViT.py
+test.py
