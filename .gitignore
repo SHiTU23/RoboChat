@@ -1,1 +1,5 @@
 *.jpg
+src/LLMs/docs
+src/LLMs/outputs
+**/__pycache__
+.qodo
