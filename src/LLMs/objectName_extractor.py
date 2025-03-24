@@ -112,7 +112,7 @@ class object_interpreter_LLM:
         response = json.loads(response)
         textual_answer = response["choices"][0]["message"]["content"]
         json_answer = json.loads(textual_answer)
-        return textual_answer, json_answer
+        return json_answer
 
 
 if __name__ == "__main__":
