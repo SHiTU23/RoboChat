@@ -17,6 +17,7 @@ Steps:
 """
 import os, sys
 import cv2
+import json
 from code_extractor import extract_code_from_txt
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,6 +26,7 @@ if PROJECT_ROOT not in sys.path:
 
 from LLMs.initial_LLM_gpt4o import task_interpreter_LLM
 from LLMs.objectName_extractor import object_interpreter_LLM
+from LLMs.object_position_decoder import object_position_interpreter_LLM
 from LLMs.codeGenerator_LLM import codeGenerator_LLM
 from VLM.image_vectorization.VLM.clipDino import ClipDino
 
@@ -38,33 +40,41 @@ print("System is started ... ")
 
 task_interpreter = task_interpreter_LLM()
 objects_names_extractor = object_interpreter_LLM()
+object_position_decoder = object_position_interpreter_LLM()
 code_generator = codeGenerator_LLM()
 object_retriever = ClipDino()
 
 print("System is Ready.")
-objects_poses = []
 
 while True:
-    key = cv2.waitKey(1) & 0xFF
+    objects_poses = []
+    pick_place_positions = []
 
     ## input the query
     query = input("Input your query here. [Enter 'q' to quite.] >> ")
 
+    ### Quit the program
     if query == 'q':
         break
 
-    text_response, json_response = task_interpreter.interpret(query)
+    ########################################################
+    ####            Interpret the Input Query           ####
+    ########################################################
+    text_response_inputQuery, json_response_inputQuery = task_interpreter.interpret(query)
 
     print("*"*10, "\n")
-    print("Task interpreted: \n", text_response)
+    print("Task interpreted: \n", text_response_inputQuery)
     print("*" * 10)
 
-    ### json_response parameters: "query", "robotics_task": TRUE, "action": "pick and place", "objects": {"pick", "place"}
-    is_robotic_task = json_response["robotics_task"]
+    ### json_response_inputQuery parameters: "query", "robotics_task": TRUE, "action": "pick and place", "objects": {"pick", "place"}
+    is_robotic_task = json_response_inputQuery["robotics_task"]
     if is_robotic_task:
-        objects_descriptions = f"{json_response["objects"]}"
+        objects_descriptions = f"{json_response_inputQuery["objects"]}"
+        print(objects_descriptions)
 
-        ### we got a list of objetc names
+        ########################################################
+        ####            Extract the Object Names            ####
+        ########################################################
         objects_names = objects_names_extractor.interpret(objects_descriptions)
         print(f"objects_names: {objects_names}")
 
@@ -73,60 +83,116 @@ while True:
 
         if len(objects_names) != 0:
             all_cubes_BBs = object_retriever.find_all_cubes(image_path)
-
-            ### spatial relations between cubes are described
-            if objects_names[0] == 1:
-                objects_poses.append({"all_cube_boundingBoxes": all_cubes_BBs})
+            objects_poses.append({"all_cube_boundingBoxes": all_cubes_BBs})
 
             ### find objects in the image
             for object_name in objects_names[1:]:
                 print(f"Processing the image for {object_name}... ")
 
-                ### give the name of the requested object to the VLM
+                ########################################################
+                ####          Find the Objects in the Image         ####
+                ########################################################
                 VLm_result = object_retriever.retrieve_object(object_name)
                 if VLm_result is not None:
                     print("Finding th eposition of the object in the image ....")
                     object_bbox, utilized_model_inDetection = VLm_result       
-                    obejct_center_point = object_retriever.extract_centeroid()
 
                     ### structured pose of the object
-                    objects_poses.append({"object_name": object_name, "object_boundingBox": object_bbox, "object_center": obejct_center_point})
-                    print(objects_poses)
-                    
-                    retrieved_obejct_image = object_retriever.image_retrivedObject()
-                    cv2.imshow(f"retrieved_{object_name}", retrieved_obejct_image)
-                    cv2.waitKey(1)
+                    objects_poses.append({"object_name": object_name, "object_boundingBox": object_bbox})
                 else:
                     print(f"Object {object_name} is not found in the image.")
         else:
             print("No object names found in the query.")
 
-    print(objects_poses)
+        print(objects_poses)
 
+        image = cv2.imread(image_path)
 
+        ########################################################
+        ####             Final Objects Positions            ####
+        ########################################################
+        final_positions = object_position_decoder.interpret(objects_descriptions, objects_poses)
+        print(f"final_positions: {final_positions}")
+        objects_descriptions = objects_descriptions.replace("'", '"')
+        print(objects_descriptions)
+        objects_descriptions_json = json.loads(objects_descriptions)
+        if "pick" in final_positions:
+            pick_object_bb = final_positions["pick"]
+            pick_object_center = object_retriever.extract_centeroid(pick_object_bb)
+            pick_object = {"object_description" : objects_descriptions_json["pick"], "object_location": pick_object_center}
+            pick_place_positions.append(pick_object)
 
-    #         print("Sending data to generate Action Plan and Generate Code ....")
-    #         ### send the object pose along with the json response from interpreter to code generator
-    #         next_query = f"""
-    #                         JSON 1:
-    #                         {json_response}
-    #                         -------------------
-    #                         List of JSONs:
-    #                         {object_pose}
-    #                     """
+            pick_x, pick_y, pick_w, pick_h = pick_object_bb
+            cv2.rectangle(image, (pick_x, pick_y), (pick_x + pick_w, pick_y + pick_h), (255, 255, 255), 2)
+            cv2.circle(image, pick_object_center, 3, (255, 255, 255), thickness=-1)
+            cv2.putText(image, "pick object", (pick_x, pick_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
-    # ### the query is NOT a robotics task
-    # else:
-    #     next_query = f"""
-    #                         JSON 1:
-    #                         {json_response}
-    #                     """
+        if "place" in final_positions:
+            place_object_bb = final_positions["place"]
+            place_object_center = object_retriever.extract_centeroid(place_object_bb)
+            place_object = {"object_description" : objects_descriptions_json["place"], "object_location": place_object_center}
+            pick_place_positions.append(place_object)
+
+            place_x, place_y, place_w, place_h = place_object_bb
+            cv2.rectangle(image, (place_x, place_y), (place_x + place_w, place_y + place_h), (255, 0, 0), 2)
+            cv2.circle(image, place_object_center, 3, (255, 0, 0), thickness=-1)
+            cv2.putText(image, "place object", (place_x, place_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+
+        if len(pick_place_positions) == 0:
+            print("No positions found in the query.")
+        else:
+            print(f"pick_place_positions: {pick_place_positions}")
+
+        cv2.imshow("Final Object", image)
+        cv2.waitKey(1)
+
+        ########################################################
+        ####     Generate Action Plan and Generate Code     ####
+        ########################################################
+        print("Sending data to generate Action Plan and Generate Code ....")
+        ### send the object pose along with the json response from interpreter to code generator
+        next_query = f"""
+                        - User query:
+                        {text_response_inputQuery}
+
+                        - Objects locatiions: {pick_place_positions}
+                    """
+
+    ### the query is NOT a robotics task - send only the query
+    elif not is_robotic_task:
+        next_query = json_response_inputQuery["query"]
         
-    # final_response = code_generator.generate_answer(next_query, RAG_inUse=True)
-    # print("*"*10, "\n")
-    # print("Final Response: \n", final_response)
-    #     #### add the robot coordinate changes for the object pose
+    final_response = code_generator.generate_answer(next_query, robotic_task= is_robotic_task, RAG_inUse=True)
+    print("*"*10, "\n")
+    print("Final Response: \n", final_response)
+        #### add the robot coordinate changes for the object pose
 
-    # code = extract_code_from_txt(final_response)
+    code = extract_code_from_txt(final_response)
+
+    ########################################################
+    ####                 Save the Results               ####
+    ########################################################
+    result_image_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "images")
+    number_of_existing_files = len(os.listdir(result_image_dir))
+
+    cv2.imwrite(os.path.join(result_image_dir, f"result_image_{number_of_existing_files}.png"), image)
+
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "system_output.md"), "a") as md_file:
+        md_file.write(f"**Results for Test Number {number_of_existing_files}** \n\n")
+        md_file.write(f"**Query**: {query} \n\n")
+        md_file.write(f"**Query Interpreted as** : \n\n`{json_response_inputQuery}` \n\n")
+
+        if is_robotic_task:
+            md_file.write(f"**Object names extracted from their Descriptions as**: `{objects_names}` \n\n")
+            if VLm_result is not None:
+                md_file.write(f"**Objects poisiotns found in images**: `{objects_poses}` \n\n")
+                md_file.write(f"**Requested Objects poisiotns are calculated as**: `{pick_place_positions}` \n\n")
+                md_file.write(f"*The image is save in `{result_image_dir}/result_image_{number_of_existing_files}.png`* \n\n")
+        
+        md_file.write(f"**The final resaponse of the system is:** \n\n {final_response} \n\n")
+        md_file.write("-"*20)
+        md_file.write("\n\n")
+
+    print("Results are saved.")
     
-# cv2.destroyAllWindows()
+cv2.destroyAllWindows()
