@@ -44,7 +44,7 @@ class task_interpreter_LLM:
                                         Instructions:
                                         - If the input query does not represent a robotic task, simply return the query as is along with an indicator that it is not a robotics task.
                                         - If the input query describes a robotic task, split it into its action and objects and return these details in JSON format.
-
+                                        - If in the input query "one" is used, replace it with "cube" when returning the output.  
                                         Output Examples:
                                         1. For a non-robotic query:
                                         Input: "What is the weather today?"
@@ -76,6 +76,19 @@ class task_interpreter_LLM:
                                             "objects": {
                                             "pick": "the blue cube",
                                             "place": "left side of table"
+                                            }
+                                        }
+
+                                        4. For a multi-action robotic task:
+                                        Input: "place the green cube on top of the blue one"
+                                        Output:
+                                        {
+                                            "query": "place the green cube on top of the blue one",
+                                            "robotics_task": true,
+                                            "action": "pick and place",
+                                            "objects": {
+                                            "pick": "the green cube",
+                                            "place": "the blue cube"
                                             }
                                         }
 
