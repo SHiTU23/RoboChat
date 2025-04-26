@@ -1,3 +1,9 @@
+"""
+Every time new docs are added to Azure Blob, all the previous index, indxer, skillset, datasource should be deleted.
+And new AZURE_BLOB_SAS_URL should be obtained from the shared accesss token page and the permissions should be on everything.
+
+"""
+
 from process1_create_index_schema import create_index_schema
 from process2_dataSource_connection import connect_dataSource
 from process3_create_skillset import create_skillset
@@ -14,7 +20,7 @@ AZURE_EMBEDDING_MODEL = "text-embedding-3-large"
 AZURE_SEARCH_SERVICE = "https://thesis-west-aisearch.search.windows.net"
 AZURE_SEARCH_ADMIN_KEY = "RyHN2fSd1HrLqlwpfUuTbVYwmTO4W9rR3OxO9FZko6AzSeDsPllI"
 ### for the connection string, go to Azure portal, storage account, under datastorage go to containers, choose your container name and go to Shared access token under Setting menu, and gnerate one and pick the URL 
-AZURE_BLOB_SAS_URL = "ContainerSharedAccessUri=https://aihubthesiswes4047422348.blob.core.windows.net/robotics-data?sp=racwdl&st=2025-03-16T18:51:11Z&se=2025-06-30T02:51:11Z&spr=https&sv=2022-11-02&sr=c&sig=RWFehsUP0csD8HO6Aqjl%2Fpzd6M8MVYX%2FGuHKB3MK4wA%3D"
+AZURE_BLOB_SAS_URL = "ContainerSharedAccessUri=https://aihubthesiswes4047422348.blob.core.windows.net/robotics-data?sp=racwdli&st=2025-04-24T09:20:46Z&se=2025-07-17T17:20:46Z&spr=https&sv=2024-11-04&sr=c&sig=%2Bn5tOrcRb8MEki0VB9JwZiz2pLvo%2ByPPIR6eqqLcCq4%3D"
 credential = AzureKeyCredential(AZURE_SEARCH_ADMIN_KEY)
 
 
