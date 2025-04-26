@@ -25,7 +25,7 @@ $ source Desktop/Shiva/catkin_workspace/devel/setup.bash
 ### change the position of the camera
 
 > Go to this path:
-> `catkin_workspace/src/common-sensors/common_sensors/urdf/sensors/kinect.urdf.xacro`
+> `Desktop/Shiva/catkin_workspace/src/common-sensors/common_sensors/urdf/sensors/kinect.urdf.xacro`
 > open the file and change the variables for `cam_px`, `cam_py`, ...
 
 ### add objects and save the world
@@ -34,7 +34,7 @@ $ source Desktop/Shiva/catkin_workspace/devel/setup.bash
 > then save the world.
 >
 > **add the world to the launch file**  :
->> 1. have the world file in `catkin_workspace/src/ur5_simple_pick_and_place/world` 
+>> 1. have the world file in `catkin_workspace/src/ur5_simple_pick_and_place/world`  `my_world`
 >> 2. change the world name in `gazebo.launch` in `catkin_workspace/src/ur5_gripper_moveit_config/launch` in lines **6** and **10**.
 
 ## What it can do now:
