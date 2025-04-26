@@ -119,7 +119,6 @@ if __name__ == "__main__":
     intrpreter = object_interpreter_LLM()
 
     input_query = '{"pick": "the green cube", "place": "on the cube located in the right side of the red cube"}'
-    txt_response, json_response = intrpreter.interpret(input_query)
-    print(txt_response)
+    json_response = intrpreter.interpret(input_query)
 
     print(f"json: {json_response}")
