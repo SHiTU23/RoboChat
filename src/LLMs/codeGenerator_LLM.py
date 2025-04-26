@@ -42,86 +42,236 @@ class codeGenerator_LLM:
         embedding = response.data[0].embedding
         return embedding
 
-    def generate_answer(self, input_query, RAG_inUse=True):
+    def generate_answer(self, input_query, robotic_task, RAG_inUse=True):
         if RAG_inUse:
-            # Provide instructions to the model
-            _GROUNDED_PROMPT='''
-            You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate codes and action plans. You will receive user queries in JSON format that may or may not be robotics tasks. If the query **is** a robotics task, you will also receive a list of JSONs containing of the object's location.
+            if robotic_task:
+                ### first generate an action plan and then search through the provided documents to find the needed functions
+                _ACTIONPLAN_GROUNDED_PROMPT = """
+                You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate a detail action plans for completing the requested task. You will receive user queries in JSON format that includes the requested robotic task, and receive a list of JSONs containing of the object's location. 
+                
+                Your objectives:
+                - Generate a detailed step-by-step action plan for performing the task by a ur-5 robot in ros.
+                - Use bullet points for multi-point answers.
+                - The action plan should be very detailed and including all the steps for the task in the simulation.
+                - You must refer to the provided sources for the correctness of the steps and not missing the important steps.
+                - Extract exact functions names from the sources that are needed for the task to be complete for each step. 
+                - Refer to the chat history if needed.
+                - If you lack sufficient information, state that you do not have enough details.
 
-            Your objectives:
-            1. If the query is **not** a robotics task, provide a brief (2–3 sentence) reliable answer.
-            2. If the query **is** a robotics task:
-            - Generate a step-by-step action plan.
-            - Produce Python code for the UR5 robot to perform the requested actions.
-            - Use the provided resources for correctness, but do not copy methods verbatim.
-            - Give a list of citation of sources when they are used.
-            - Refer to chat history if needed.
-            3. End your response with a concise summary labeled **"history:"** for future reference.
-            4. Use bullet points for multi-point answers.
-            5. If you lack sufficient information, state that you do not have enough details.
+                **Example of Inputs:**
+                - User query: 
+                {{
+                    "query": "pick the green cube",
+                    "robotics_task": true,
+                    "action": "pick",
+                    "objects": {{
+                    "pick": "the green cube",
+                    }}
+                }}
 
-            **Inputs:**
-            - JSON 1 (always provided): e.g., {{
-                                                "query": "pick the blue cube and place on left side of table",
-                                                "robotics_task": true,
-                                                "action": "pick and place",
-                                                "objects": {{
-                                                "pick": "the blue cube",
-                                                "place": "left side of green cube"
-                                                }}
-                                            }}
-            - List of JSONs (provided **only** if `robotics_task` is true): e.g., [{{"object_name": "the blue cube", 
-                                                                                    "object_location": [x1, y1] }},
-                                                                                    {{"object_name": "the green cube", 
-                                                                                    "object_location": [x2, y2] }}]
+                - Objects locatiions: [{{'object_description': 'the green cube', 'object_location': (399, 128)}}]
 
-            ---------------
+                ----------------
+                **Inputs:** 
+                {user_query}
 
-            **Query:** {user_query}
+                **Sources:**
+                {sources}
+                """
+                # **Chat_history:**
+                # {history}
 
-            +++++++++++++++
-            Chat_history: {history}
+                Search_query_for_actionPlan = f"""
+                                query: {input_query}
+                                Extract all the functions names and steps for compeleting the requied task given in 'query' by the robot in simulation. Do not miss steps.
+                                """
 
-            Sources:
-            {sources}
 
-            '''
+                _actionPlan_embedding = self.get_embeddings_vector(Search_query_for_actionPlan)
+                _actionPlan_vector_query = VectorizedQuery(vector=_actionPlan_embedding, k_nearest_neighbors=10, fields="text_vector")
 
-            # Provide the search query. 
-            # The vector query finds 5 nearest neighbor matches in the search index
-            # query="pick the green cube."
-            _embedding = self.get_embeddings_vector(input_query)
-            _vector_query = VectorizedQuery(vector=_embedding, k_nearest_neighbors=5, fields="text_vector")
+                print("Searching for the relevant docs to the query for generating action plan")
+                search_results_for_actionPlan = self._search_client.search(
+                                                            search_text=Search_query_for_actionPlan,
+                                                            vector_queries= [_actionPlan_vector_query],
+                                                            select=["title", "chunk"],
+                                                            top=20, # number of documents to return
+                                                            )
 
-            # Set up the search results and the chat thread.
-            # Retrieve the selected fields from the search index related to the question.
-            # Search results are limited to the top 5 matches. Limiting top can help you stay under LLM quotas.
-            search_results = self._search_client.search(
-                                                        search_text=input_query,
-                                                        vector_queries= [_vector_query],
-                                                        select=["title", "chunk"],
-                                                        top=5,
-                                                        )
+                # Use a unique separator to make the sources distinct, such as === 
+                _formatted_sources_for_actionPlan = "=================\n".join([f'TITLE: {document["title"]}, CONTENT: {document["chunk"]}' for document in search_results_for_actionPlan])
+                # _content_for_actionPlan = _ACTIONPLAN_GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history, sources=_formatted_sources_for_actionPlan)
+                _content_for_actionPlan = _ACTIONPLAN_GROUNDED_PROMPT.format(user_query=input_query, sources=_formatted_sources_for_actionPlan)
 
-            # Use a unique separator to make the sources distinct, such as === 
-            _sources_formatted = "=================\n".join([f'TITLE: {document["title"]}, CONTENT: {document["chunk"]}' for document in search_results])
-            _content = _GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history, sources=_sources_formatted)
+                print("Waiting for generating Action Plan")
+                #### send to the LLM to generate the action plan
+                actionPlan_response = self._openai_client.chat.completions.create(
+                                                                                    messages=[
+                                                                                        {
+                                                                                            "role": "user",
+                                                                                            "content": _content_for_actionPlan
+                                                                                        }
+                                                                                    ],
+                                                                                    model=self._AZURE_CHAT_MODELNAME,
+                                                                                    max_tokens=5000,  
+                                                                                    temperature=0.5,  
+                                                                                    top_p=0.6,  
+                                                                                    frequency_penalty=0,  
+                                                                                    presence_penalty=0,
+                                                                                    stop=None,  
+                                                                                    stream=False
+                                                                                )
+                llm_actionPlan_response = actionPlan_response.choices[0].message.content
+                print("Action Plan: \n", llm_actionPlan_response)
 
-        else:
+                #### Now the Action Plan goes to the RAG to find the needed functions for the code and generate the final code
+
+                # - Strictly reuse full function definitions from the provided sources. Only replace function arguments (e.g., object name, x, y) with the values given in the input. Do NOT rewrite or restructure code unless explicitly required.
+                # - Note the collision object to add it correctly and as it is structured in the sample codes.
+                # - Do NOT change anything in the code sctructure unless explicitly instructed. Import all the libraries in the code. 
+                # - Copy codes from the code samples in the provided sources and give an accurate and executable Python code for the UR5 robot to perform the requested actions. Do not miss packages and libraries to include in the code correctly.
+                # Based on the given action plan and searching though the provided sources to find the corresponding code blocks for the action plan and generate a code that includes all the necessary libraries, functions and code steps from the code samples and provided documents.
+# Your objectives:
+#                 - The user has all the sample codes in the provided sources, so you need to write a code that uses those functions and classes from the provided sources to perform the task. 
+#                 - Frist Refer to the Action Plan that is given in the following and consider the task requested in the Query. 
+#                 - Search through the provided Sources for the functions and classes that are needed to perform the task.
+#                 - Do not write the bodies of functions just call them in your generated code.
+#                 - Write a Python code to perform the task by calling the correct functions from the provided sources and supplementing the correct values.
+#                 - Import all the necessary libraries and packages in the code.
+#                 - Note that the usedr might ask to place a cube "on top" of another, then you should caculate the correct z coordinate for the cube to be placed on top of the other cube.
+#                 - Give a list of citation of sources when you used them.
+#                 - Refer to chat history if needed.
+#                 - End your response with a concise summary labeled **"history:"** for future reference.
+#                 - If you lack sufficient information, state that you do not have enough details.
+#                 - Be careful with generating the code, you should consider everything and everything should work properly.
+
+                # You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate accurate and executable Python code for the robot to perfrom the requested task in  Gazebo simulation controlled by ROS. You will receive user queries in JSON format that includes the requested robotic task, and receive a list of JSONs containing of the object's location, and the generated Action Plan for the task accomplishment.
+
+
+                _CODE_GENERATOR_GROUNDED_PROMPT='''
+                === STYLE GUARDRAIL ===
+                • Your output MUST ONLY contain:
+                    1. import statements
+                    2. calls to existing functions/classes with literal argument values
+                • You CANNOT include:
+                    – Any function or class definitions
+                    – Any code excerpted from the bodies of functions
+
+                === INSTRUCTIONS ===
+                Your task:  
+                Generate a Python script for a UR5 robot by calling pre-existing functions and classes from the provided source files—do NOT rewrite or modify any function bodies.
+
+                1. Inputs:  
+                - **Action Plan**: an ordered list of function names (and any parameter placeholders).  
+                - **Source Files**: code samples containing full definitions of those functions and classes.
+
+                2. Procedure:  
+                a. Read the Action Plan and the user’s query.  
+                b. Locate each function or class in the Source Files.  
+                c. Calculate any derived parameters (e.g., z-coordinate when stacking cubes).  
+                d. **Do not** write or change function bodies—only call them.  
+                e. Import all required libraries/modules exactly as they appear in the sources, Import the script name if you are calling a method from it.
+
+                3. Output:  
+                - A single Python script that:  
+                    1. Imports necessary packages.  
+                    2. Calls each function in the order given, supplying the correct argument values.  
+                - A **Citations** section listing which source file or sample provided each function.  
+                - A one-paragraph **history:** summary of what was generated and why.
+
+                4. Missing Information:  
+                - If any function or parameter value is unavailable or ambiguous, respond with:  
+                    `Insufficient information: [describe what’s missing].`
+
+
+                **Example of Inputs:**
+                - User query: 
+                {{
+                    "query": "pick the green cube",
+                    "robotics_task": true,
+                    "action": "pick",
+                    "objects": {{
+                    "pick": "the green cube",
+                    }}
+                }}
+
+                - Objects locatiions: [{{'object_description': 'the green cube', 'object_location': (399, 128)}}]
+
+                ---------------
+                **Inputs:** 
+                {user_query}
+
+                **Action Plan:**
+                {action_plan}
+
+                **Provided Sources:**
+                {sources}
+
+                '''
+
+                ### Search through the docs for functions and code
+                Search_query_for_codeGeneration = f"""
+                                Input Query: {input_query}
+                                List all the functions and classes necessary for the code to compelete the requied task given in 'Input Query' by the robot in simulation. Do not miss any part in the function bodies.
+                                """
+
+
+                _codeGeneration_embedding = self.get_embeddings_vector(Search_query_for_codeGeneration)
+                _codeGeneration_vector_query = VectorizedQuery(vector=_codeGeneration_embedding, k_nearest_neighbors=10, fields="text_vector")
+
+                search_results_for_codeGeneration = self._search_client.search(
+                                                            search_text=Search_query_for_codeGeneration,
+                                                            vector_queries= [_codeGeneration_vector_query],
+                                                            select=["title", "chunk"],
+                                                            top=20, # number of documents to return
+                                                            )
+
+                # Use a unique separator to make the sources distinct, such as === 
+                _codeGeneration_sources_formatted = "=================\n".join([f'TITLE: {document["title"]}, CONTENT: {document["chunk"]}' for document in search_results_for_codeGeneration])
+                _final_content = _CODE_GENERATOR_GROUNDED_PROMPT.format(user_query=input_query, action_plan=llm_actionPlan_response, sources=_codeGeneration_sources_formatted)
+
+            elif not robotic_task:
+                _GROUNDED_PROMPT = """
+                You are an AI assistant for a UR5 robot in ROS and Gezebo that generates action plans and then Python codes for it to perform the robotics task requested in the query when the query is a robotic task. Now that the query is not a robotic task, you should provide 2-3 sentences short reliable answers to the quetions.
+                
+                Your objectives:
+                - Use bullet points if the answer has multiple points.
+                - If you don't know the answer, say you don't have enough information.
+                - End your response with a concise summary labeled **"history:"** for future reference.
+
+                ---------------
+                **Query:**
+                {user_query}
+
+                **Chat_history:**
+                {history}
+                """
+                _final_content = _GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history,)
+
+        elif not RAG_inUse:
             _GROUNDED_PROMPT = """
             You are an AI assistant for a UR5 robot in ROS and Gezebo that generates action plans and then Python codes for it to perform the robotics task requested in the query when the query is a robotic task. otherwise, provide 2-3 sentences short reliable answers to the quetions that are not a robotic_task.
-            Use bullet points if the answer has multiple points.
-            If you don't know the answer, say you don't have enough information.
-            At the end give a very short summary to be used as a history in the chatm label "history:".
-            Query: {user_query}
-            """
-            _content = _GROUNDED_PROMPT.format(user_query=input_query)
+            
+            Your objectives:
+            - Use bullet points if the answer has multiple points.
+            - If you don't know the answer, say you don't have enough information.
+            - End your response with a concise summary labeled **"history:"** for future reference.
 
-        response = self._openai_client.chat.completions.create(
+            ---------------
+            **Query:**
+            {user_query}
+
+            **Chat_history:**
+            {history}
+            """
+            _final_content = _GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history,)
+
+
+        final_response = self._openai_client.chat.completions.create(
                                                                 messages=[
                                                                     {
                                                                         "role": "user",
-                                                                        "content": _content
+                                                                        "content": _final_content
                                                                     }
                                                                 ],
                                                                 model=self._AZURE_CHAT_MODELNAME,
@@ -133,15 +283,23 @@ class codeGenerator_LLM:
                                                                 stop=None,  
                                                                 stream=False
                                                             )
-        llm_response = response.choices[0].message.content
-        summary = self.extract_summary(llm_response)
+        llm_final_response = final_response.choices[0].message.content
+
+        summary = self.extract_summary(llm_final_response)
         history = {
                     "query": input_query,
                     "summary": summary
                  }
         self._chat_history.append(history)
-        # print("Chat history: \n", self._chat_history)
-        return llm_response
+
+        final_report = f"""
+                    response for Action plan: \n
+                    {llm_actionPlan_response}
+                    \n\n
+                    response for code generation: \n
+                    {llm_final_response}
+                    """
+        return final_report
     
     def extract_summary(self, text):
         keyword = "history"
@@ -154,8 +312,27 @@ class codeGenerator_LLM:
 
 if __name__ == "__main__":
     llm = codeGenerator_LLM()
-    while True:
-        query = input("Enter query: ")
-        response = llm.generate_answer(query, RAG_inUse=True)
-        print(response)
-        print("=====================================")
+
+    user_query = '''
+            {
+                "query": "pick the cube on the right side of the blue cube and place it on top the cube next to green cube",
+                "robotics_task": true,
+                "action": "pick and place",
+                "objects": {
+                    "pick": "the cube on the right side of the blue cube",
+                    "place": "the cube next to green cube"
+                }
+            }
+            '''
+    object_locations = [{'object_description': 'the green cube', 'object_location': (399, 128)}]
+    
+    query = f"""
+                - User query:
+                {user_query}
+
+                - Objects locatiions: {object_locations}
+            """
+    
+    response = llm.generate_answer(query, robotic_task=True, RAG_inUse=True)
+    print(response)
+    print("=====================================")
