@@ -33,7 +33,7 @@ from VLM.image_vectorization.VLM.clipDino import ClipDino
 
 ### image is stored in image dir
 images_dirpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images')
-image_name = os.listdir(images_dirpath)[0]
+image_name = "main_scene.jpg"
 image_path = os.path.join(images_dirpath, image_name)
 
 print("System is started ... ")
@@ -43,7 +43,7 @@ objects_names_extractor = object_interpreter_LLM()
 object_position_decoder = object_position_interpreter_LLM()
 code_generator = codeGenerator_LLM()
 object_retriever = ClipDino()
-
+change_image_path = "change image"
 print("System is Ready.")
 
 while True:
@@ -56,6 +56,11 @@ while True:
     ### Quit the program
     if query == 'q':
         break
+    if query == change_image_path:
+        new_image_name = input("Enter the new image name with .jpg: ")
+        image_path = os.path.join(images_dirpath, new_image_name)
+        print("Image path changed")
+        query = input("Input your query here. [Enter 'q' to quite.] >> ")
 
     ########################################################
     ####            Interpret the Input Query           ####
@@ -126,6 +131,7 @@ while True:
             cv2.rectangle(image, (pick_x, pick_y), (pick_x + pick_w, pick_y + pick_h), (255, 255, 255), 2)
             cv2.circle(image, pick_object_center, 3, (255, 255, 255), thickness=-1)
             cv2.putText(image, "pick object", (pick_x, pick_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            cv2.putText(image, f"pick: {objects_descriptions_json['pick']}", (20, 430), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
         if "place" in final_positions:
             place_object_bb = final_positions["place"]
@@ -137,6 +143,7 @@ while True:
             cv2.rectangle(image, (place_x, place_y), (place_x + place_w, place_y + place_h), (255, 0, 0), 2)
             cv2.circle(image, place_object_center, 3, (255, 0, 0), thickness=-1)
             cv2.putText(image, "place object", (place_x, place_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+            cv2.putText(image, f"place: {objects_descriptions_json['place']}", (20, 450), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
 
         if len(pick_place_positions) == 0:
             print("No positions found in the query.")
@@ -178,7 +185,7 @@ while True:
     cv2.imwrite(os.path.join(result_image_dir, f"result_image_{number_of_existing_files}.png"), image)
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "system_output.md"), "a") as md_file:
-        md_file.write(f"**Results for Test Number {number_of_existing_files}** \n\n")
+        md_file.write(f"## **Results for Test Number {number_of_existing_files}** \n\n")
         md_file.write(f"**Query**: {query} \n\n")
         md_file.write(f"**Query Interpreted as** : \n\n`{json_response_inputQuery}` \n\n")
 
@@ -190,7 +197,7 @@ while True:
                 md_file.write(f"*The image is save in `{result_image_dir}/result_image_{number_of_existing_files}.png`* \n\n")
         
         md_file.write(f"**The final resaponse of the system is:** \n\n {final_response} \n\n")
-        md_file.write("-"*20)
+        md_file.write("="*20)
         md_file.write("\n\n")
 
     print("Results are saved.")
