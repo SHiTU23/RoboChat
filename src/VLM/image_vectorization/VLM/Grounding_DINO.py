@@ -70,7 +70,7 @@ class Grounding_Dino:
                     
                     label_text = f"{label}: {score:.3f}"
                     self.detected_image = cv2.rectangle(image_cv, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                    self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                    # self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
             else:
                 for i, score in enumerate(results[0]["scores"]):
                     score = float(score)
@@ -92,7 +92,7 @@ class Grounding_Dino:
                 
                 label_text = f"{label}: {highest_score:.3f}"
                 self.detected_image = cv2.rectangle(image_cv, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+                # self.detected_image = cv2.putText(image_cv, label_text, (x1 - 10, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
         else:
             print(f"{text} not found in the image.")
 
@@ -114,7 +114,7 @@ class Grounding_Dino:
 
         if self.obj_detected:
             self.image_save_counter += 1
-            image_name = self.detected_object_name + f'_{self.image_save_counter}.jpg'
+            image_name = 'new' + self.detected_object_name + f'_{self.image_save_counter}.jpg'
 
             cv2.imwrite(images_dir + image_name, self.detected_image)
             print("image saved")
@@ -127,16 +127,17 @@ if __name__ == "__main__":
     current_dir = os.path.dirname(__file__)
     src_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
     pic_dir = src_dir + '/simulation/images/'
-    image_path = pic_dir + '_image66.jpg'
+    image_path = pic_dir + 'image716.jpg'
     # image_path = pic_dir + '_image_changedscene1.jpg'
 
 
     # text = "objects on the table"
-    queries = ["red cube", "blue cube", "green cube", "yellow cube", "pink cube", "cubes", "robot arm"]
+    # queries = ["red cube", "blue cube", "green cube", "yellow cube", "pink cube", "cubes", "robot arm"]
+    queries = ['red cube']
 
     for query in queries:
 
-        object_features, image = grounding_dino.detect_object(image_path, query, all_objects=True)
+        object_features, image = grounding_dino.detect_object(image_path, query, all_objects=False)
         print(object_features)
         # cv2.imshow("image", image)
         # cv2.waitKey(0)
