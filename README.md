@@ -6,6 +6,17 @@ To start the system, run the `main.py` script located in `src/pipeline`.
 To add new documents to the RAG system, add documents on Azure Storage and then run `index_docs_inAzure.py` located in `src/LLMs/RAG`.
 
 
+> The result for Vision module to localize an image that is described in text (nearest cube to the yellow cube and left side of blue cube):
+![vlm-result](src\pipeline\results\images\result_image_62.png)
+
+
+> The task (pick the nearest cube to the yellow cube and place it left to the blue cube.) preformed in simulation env:
+![pick-result](src\pipeline\results\system_performance_in_simulation\pick-cube.png)
+>
+>![place-result](src\pipeline\results\system_performance_in_simulation\place.png)
+
+
+
 
 thesis_env dir: `/e/SHiTU/programming/university_west_programming/thesis`
 
