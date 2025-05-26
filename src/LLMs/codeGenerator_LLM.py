@@ -58,6 +58,8 @@ class codeGenerator_LLM:
                 - Refer to the chat history if needed.
                 - If you lack sufficient information, state that you do not have enough details.
 
+                At the end return an ordered list of function names (and any parameter placeholders).
+
                 **Example of Inputs:**
                 - User query: 
                 {{
@@ -82,8 +84,8 @@ class codeGenerator_LLM:
                 # {history}
 
                 Search_query_for_actionPlan = f"""
-                                query: {input_query}
-                                Extract all the functions names and steps for compeleting the requied task given in 'query' by the robot in simulation. Do not miss steps.
+                                query: {input_query} \n
+                                *For generating an Action Plan, Extract all the functions declarations and their arguments and steps for compeleting the requied task given in 'query' by the robot in simulation. Do not miss steps.
                                 """
 
 
@@ -146,6 +148,7 @@ class codeGenerator_LLM:
 #                 - Be careful with generating the code, you should consider everything and everything should work properly.
 
                 # You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate accurate and executable Python code for the robot to perfrom the requested task in  Gazebo simulation controlled by ROS. You will receive user queries in JSON format that includes the requested robotic task, and receive a list of JSONs containing of the object's location, and the generated Action Plan for the task accomplishment.
+                # Calls each function in the order given, supplying the correct argument values.  
 
 
                 _CODE_GENERATOR_GROUNDED_PROMPT='''
@@ -167,15 +170,16 @@ class codeGenerator_LLM:
 
                 2. Procedure:  
                 a. Read the Action Plan and the user’s query.  
-                b. Locate each function or class in the Source Files.  
+                b. Locate each function or class in the Source Files and do not miss important steps in them.  
                 c. Calculate any derived parameters (e.g., z-coordinate when stacking cubes).  
-                d. **Do not** write or change function bodies—only call them.  
+                d. **Do not** write or change function bodies—only call them.
                 e. Import all required libraries/modules exactly as they appear in the sources, Import the script name if you are calling a method from it.
 
                 3. Output:  
                 - A single Python script that:  
                     1. Imports necessary packages.  
-                    2. Calls each function in the order given, supplying the correct argument values.  
+                    2. Contains all the steps required to complete the requested task.
+                    3. Calls each function in the order given, supplying the correct argument values.  
                 - A **Citations** section listing which source file or sample provided each function.  
                 - A one-paragraph **history:** summary of what was generated and why.
 
@@ -211,8 +215,11 @@ class codeGenerator_LLM:
 
                 ### Search through the docs for functions and code
                 Search_query_for_codeGeneration = f"""
-                                Input Query: {input_query}
-                                List all the functions and classes necessary for the code to compelete the requied task given in 'Input Query' by the robot in simulation. Do not miss any part in the function bodies.
+                                Input Query: {input_query} \n
+                                Action Plan: {llm_actionPlan_response} \n
+                                -Read the Action Plan and the user’s query.  
+                                -Locate each function or class in the Source Files.  
+                                -List all the functions and classes declarations necessary for the code to compelete the requied task given in 'Input Query' by the robot in simulationm based on the given Action Plan. Do not miss any part in the code.
                                 """
 
 
@@ -231,6 +238,145 @@ class codeGenerator_LLM:
                 _final_content = _CODE_GENERATOR_GROUNDED_PROMPT.format(user_query=input_query, action_plan=llm_actionPlan_response, sources=_codeGeneration_sources_formatted)
 
             elif not robotic_task:
+                Search_query_for_actionPlan = f"""
+                            query: {input_query} \n
+                            Search through the document to find the relevant information to the input query in the documents.
+                            """
+                _actionPlan_embedding = self.get_embeddings_vector(Search_query_for_actionPlan)
+                _actionPlan_vector_query = VectorizedQuery(vector=_actionPlan_embedding, k_nearest_neighbors=10, fields="text_vector")
+
+                search_results_for_actionPlan = self._search_client.search(
+                                                            search_text=Search_query_for_actionPlan,
+                                                            vector_queries= [_actionPlan_vector_query],
+                                                            select=["title", "chunk"],
+                                                            top=20, # number of documents to return
+                                                            )
+
+                # Use a unique separator to make the sources distinct, such as === 
+                _formatted_sources_for_actionPlan = "=================\n".join([f'TITLE: {document["title"]}, CONTENT: {document["chunk"]}' for document in search_results_for_actionPlan])
+                # _content_for_actionPlan = _ACTIONPLAN_GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history, sources=_formatted_sources_for_actionPlan)
+                
+                _GROUNDED_PROMPT = """
+                You are an AI assistant for a UR5 robot in ROS and Gezebo that generates action plans and then Python codes for it to perform the robotics task requested in the query when the query is a robotic task. Now that the query is not a robotic task, you should provide 2-3 sentences short reliable answers to the quetions.
+                
+                Your objectives:
+                - Use bullet points if the answer has multiple points.
+                - refer to the Provided sources to find the relevant answers and be more reliable.
+                - If you don't know the answer, say you don't have enough information.
+                - End your response with a concise summary labeled **"history:"** for future reference.
+                
+                ---------------
+                **Query:**
+                {user_query}
+
+                **Provided Sources:**
+                {sources}
+                """
+
+                _final_content = _GROUNDED_PROMPT.format(user_query=input_query, sources=_formatted_sources_for_actionPlan)
+
+        elif not RAG_inUse:
+            print("----------------------------- NO RAG --------------------------------")
+            if robotic_task:
+                _ACTIONPLAN_GROUNDED_PROMPT = """
+                    You are an AI assistant for a UR5 robot in ROS and Gazebo simulation environment to generate a detail action plans for completing the requested task. You will receive user queries in JSON format that includes the requested robotic task, and receive a list of JSONs containing of the object's location. 
+                    
+                    Your objectives:
+                    - Generate a detailed step-by-step action plan for performing the task by a ur-5 robot in ros.
+                    - Use bullet points for multi-point answers.
+                    - The action plan should be very detailed and including all the steps for the task in the simulation.
+                    - You must refer to the provided sources for the correctness of the steps and not missing the important steps.
+                    - If you lack sufficient information, state that you do not have enough details.
+
+                    **Example of Inputs:**
+                    - User query: 
+                    {{
+                        "query": "pick the green cube",
+                        "robotics_task": true,
+                        "action": "pick",
+                        "objects": {{
+                        "pick": "the green cube",
+                        }}
+                    }}
+
+                    - Objects locatiions: [{{'object_description': 'the green cube', 'object_location': (399, 128)}}]
+
+                    ----------------
+                    **Inputs:** 
+                    {user_query}
+                    """
+                
+                _content_for_actionPlan = _ACTIONPLAN_GROUNDED_PROMPT.format(user_query=input_query)
+
+                print("Waiting for generating Action Plan")
+                #### send to the LLM to generate the action plan
+                actionPlan_response = self._openai_client.chat.completions.create(
+                                                                                    messages=[
+                                                                                        {
+                                                                                            "role": "user",
+                                                                                            "content": _content_for_actionPlan
+                                                                                        }
+                                                                                    ],
+                                                                                    model=self._AZURE_CHAT_MODELNAME,
+                                                                                    max_tokens=5000,  
+                                                                                    temperature=0.5,  
+                                                                                    top_p=0.6,  
+                                                                                    frequency_penalty=0,  
+                                                                                    presence_penalty=0,
+                                                                                    stop=None,  
+                                                                                    stream=False
+                                                                                )
+                llm_actionPlan_response = actionPlan_response.choices[0].message.content
+                print("Action Plan: \n", llm_actionPlan_response)
+            
+
+                _GROUNDED_PROMPT = """
+                Your task:  
+                    Generate a Python script for a UR5 robot to perform the task requested in the Query.
+
+                    1. Inputs:  
+                    - **Input Query**: a JSON object containing the user’s query, including the requested robotic task and a list of objects with their locations.
+                    - **Action Plan**: an ordered list of function names (and any parameter placeholders).  
+
+                    2. Procedure:  
+                    a. Read the Action Plan and the user’s query.  
+                    b. Calculate any derived parameters (e.g., z-coordinate when stacking cubes).  
+                    d. Write function bodies for each step to be performed in ROS, so consider the correctness of the syntax and methods you use.
+                    e. Import all required libraries/modules in the output code.
+
+                    3. Output:  
+                    - A single Python script that:  
+                        1. Imports necessary packages.  
+                        2. Contains all the steps required to complete the requested task.
+                        3. Functions or classes that are needed to perform the task.
+
+                    4. Missing Information:  
+                    - If any function or parameter value is unavailable or ambiguous, respond with:  
+                        `Insufficient information: [describe what’s missing].`
+
+                    **Example of Inputs:**
+                    - User query: 
+                    {{
+                        "query": "pick the green cube",
+                        "robotics_task": true,
+                        "action": "pick",
+                        "objects": {{
+                        "pick": "the green cube",
+                        }}
+                    }}
+
+                    - Objects locatiions: [{{'object_description': 'the green cube', 'object_location': (399, 128)}}]
+
+                    ---------------
+                    **Inputs:** 
+                    {user_query}
+
+                    **Action Plan:**
+                    {action_plan}
+                """
+                _final_content = _GROUNDED_PROMPT.format(user_query=input_query, action_plan=llm_actionPlan_response)
+            
+            elif not robotic_task:
                 _GROUNDED_PROMPT = """
                 You are an AI assistant for a UR5 robot in ROS and Gezebo that generates action plans and then Python codes for it to perform the robotics task requested in the query when the query is a robotic task. Now that the query is not a robotic task, you should provide 2-3 sentences short reliable answers to the quetions.
                 
@@ -238,33 +384,13 @@ class codeGenerator_LLM:
                 - Use bullet points if the answer has multiple points.
                 - If you don't know the answer, say you don't have enough information.
                 - End your response with a concise summary labeled **"history:"** for future reference.
-
+                
                 ---------------
                 **Query:**
                 {user_query}
-
-                **Chat_history:**
-                {history}
                 """
-                _final_content = _GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history,)
 
-        elif not RAG_inUse:
-            _GROUNDED_PROMPT = """
-            You are an AI assistant for a UR5 robot in ROS and Gezebo that generates action plans and then Python codes for it to perform the robotics task requested in the query when the query is a robotic task. otherwise, provide 2-3 sentences short reliable answers to the quetions that are not a robotic_task.
-            
-            Your objectives:
-            - Use bullet points if the answer has multiple points.
-            - If you don't know the answer, say you don't have enough information.
-            - End your response with a concise summary labeled **"history:"** for future reference.
-
-            ---------------
-            **Query:**
-            {user_query}
-
-            **Chat_history:**
-            {history}
-            """
-            _final_content = _GROUNDED_PROMPT.format(user_query=input_query, history=self._chat_history,)
+                _final_content = _GROUNDED_PROMPT.format(user_query=input_query)
 
 
         final_response = self._openai_client.chat.completions.create(
@@ -291,14 +417,20 @@ class codeGenerator_LLM:
                     "summary": summary
                  }
         self._chat_history.append(history)
+        if robotic_task:
+            final_report = f"""
+                        response for Action plan: \n
+                        {llm_actionPlan_response}
+                        \n\n
+                        response for code generation: \n
+                        {llm_final_response}
+                        """
+        else:
+            final_report = f"""
+                        response for the query: \n
+                        {llm_final_response}
+                        """
 
-        final_report = f"""
-                    response for Action plan: \n
-                    {llm_actionPlan_response}
-                    \n\n
-                    response for code generation: \n
-                    {llm_final_response}
-                    """
         return final_report
     
     def extract_summary(self, text):
