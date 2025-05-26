@@ -33,6 +33,7 @@ from VLM.image_vectorization.VLM.clipDino import ClipDino
 
 ### image is stored in image dir
 images_dirpath = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images')
+# image_name = "main_scene.jpg"
 image_name = "main_scene.jpg"
 image_path = os.path.join(images_dirpath, image_name)
 
@@ -52,7 +53,7 @@ while True:
 
     ## input the query
     query = input("Input your query here. [Enter 'q' to quite.] >> ")
-
+    
     ### Quit the program
     if query == 'q':
         break
@@ -61,6 +62,12 @@ while True:
         image_path = os.path.join(images_dirpath, new_image_name)
         print("Image path changed")
         query = input("Input your query here. [Enter 'q' to quite.] >> ")
+
+    use_RAG = input("Do you want to use RAG? [y/n] >> ")
+    if use_RAG == 'y':
+        use_RAG = True
+    else:
+        use_RAG = False
 
     ########################################################
     ####            Interpret the Input Query           ####
@@ -169,7 +176,7 @@ while True:
     elif not is_robotic_task:
         next_query = json_response_inputQuery["query"]
         
-    final_response = code_generator.generate_answer(next_query, robotic_task= is_robotic_task, RAG_inUse=True)
+    final_response = code_generator.generate_answer(next_query, robotic_task= is_robotic_task, RAG_inUse=use_RAG)
     print("*"*10, "\n")
     print("Final Response: \n", final_response)
         #### add the robot coordinate changes for the object pose
@@ -182,10 +189,12 @@ while True:
     result_image_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "images")
     number_of_existing_files = len(os.listdir(result_image_dir))
 
-    cv2.imwrite(os.path.join(result_image_dir, f"result_image_{number_of_existing_files}.png"), image)
+    if is_robotic_task:
+        cv2.imwrite(os.path.join(result_image_dir, f"result_image_{number_of_existing_files}.png"), image)
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "results", "system_output.md"), "a") as md_file:
         md_file.write(f"## **Results for Test Number {number_of_existing_files}** \n\n")
+        md_file.write(f"**RAG**: {use_RAG} \n\n")
         md_file.write(f"**Query**: {query} \n\n")
         md_file.write(f"**Query Interpreted as** : \n\n`{json_response_inputQuery}` \n\n")
 
