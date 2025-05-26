@@ -1,4 +1,5 @@
 *.jpg
+*.png
 src/LLMs/docs
 src/LLMs/outputs
 **/__pycache__
