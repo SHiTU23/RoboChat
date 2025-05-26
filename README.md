@@ -1,5 +1,9 @@
 # RoboChat
-A framework generate codes, referring to robotics manuals and code samples, for robot to perfrom a task requested in text or image 
+A system is develpoed for generating action plans and code for a robot to perfrom a pick-and-place task that is stated in text and searches through the robot's workspace to localize the objects that are referred to in textual descriptions. 
+
+For runnig the system, Azure account is needed, as the LLM and RAG is deployed on Azure AI Faundry. 
+To start the system, run the `main.py` script located in `src/pipeline`.
+To add new documents to the RAG system, add documents on Azure Storage and then run `index_docs_inAzure.py` located in `src/LLMs/RAG`.
 
 
 
