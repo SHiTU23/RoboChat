@@ -16,11 +16,7 @@ To add new documents to the RAG system, add documents on Azure Storage and then 
 >![place-result](src\pipeline\results\system_performance_in_simulation\place.png)
 
 
-
-
-thesis_env dir: `/e/SHiTU/programming/university_west_programming/thesis`
-
-. thesis_env/Scripts/activate
+> The main script for running the project is `main\RoboChat\src\pipeline\main.py`
 
 
 ## VLM
