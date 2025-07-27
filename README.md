@@ -13,7 +13,7 @@ To add new documents to the RAG system, add documents on Azure Storage and then 
 > The task (pick the nearest cube to the yellow cube and place it left to the blue cube.) preformed in simulation env:
 ![pick-result](src/pipeline/results/system_performance_in_simulation/pick-cube.png)
 >
->![place-result](src\pipeline/results/system_performance_in_simulation/place.png)
+>![place-result](src/pipeline/results/system_performance_in_simulation/place.png)
 
 
 The main script for running the project is `main\RoboChat\src\pipeline\main.py`
