@@ -7,7 +7,7 @@ To add new documents to the RAG system, add documents on Azure Storage and then 
 
 
 > The result for Vision module to localize an image that is described in text (nearest cube to the yellow cube and left side of blue cube):
-![vlm-result](src\pipeline\results\images\result_image_62.png)
+![vlm-result](src/pipeline/results/images/result_image_62.png)
 
 
 > The task (pick the nearest cube to the yellow cube and place it left to the blue cube.) preformed in simulation env:
